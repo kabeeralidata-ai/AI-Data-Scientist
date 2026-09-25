@@ -1,0 +1,435 @@
+{
+  "summary": {
+    "total_rows": 2500,
+    "filtered_rows": 2500,
+    "columns": 18,
+    "is_filtered": false
+  },
+  "kpis": [
+    {
+      "key": "total_rows",
+      "label": "Total Rows",
+      "value": 2500.0,
+      "format": "number",
+      "trend": {
+        "change_pct": 0.0,
+        "previous_value": 1250.0,
+        "sparkline": [
+          313.0,
+          312.0,
+          313.0,
+          312.0,
+          312.0,
+          313.0,
+          312.0,
+          313.0
+        ]
+      }
+    },
+    {
+      "key": "late_delivery_rate",
+      "label": "No Late Delivery Rate",
+      "value": 0.7496,
+      "format": "percent",
+      "source_column": "late_delivery",
+      "agg": "rate",
+      "rate_value": "No",
+      "trend": {
+        "change_pct": -2.5,
+        "previous_value": 0.7592,
+        "sparkline": [
+          0.8243,
+          0.7436,
+          0.7316,
+          0.7372,
+          0.734,
+          0.7668,
+          0.7468,
+          0.7125
+        ]
+      }
+    },
+    {
+      "key": "total_distance_km",
+      "label": "Total Distance Km",
+      "value": 13095.09,
+      "format": "number",
+      "source_column": "distance_km",
+      "agg": "sum",
+      "trend": {
+        "change_pct": 0.2,
+        "previous_value": 6539.69,
+        "sparkline": [
+          1617.61,
+          1653.03,
+          1669.93,
+          1599.12,
+          1633.03,
+          1667.66,
+          1665.28,
+          1589.43
+        ]
+      }
+    },
+    {
+      "key": "total_items_count",
+      "label": "Total Items Count",
+      "value": 10969.0,
+      "format": "number",
+      "source_column": "items_count",
+      "agg": "sum",
+      "trend": {
+        "change_pct": -1.8,
+        "previous_value": 5534.0,
+        "sparkline": [
+          1382.0,
+          1438.0,
+          1343.0,
+          1371.0,
+          1300.0,
+          1332.0,
+          1384.0,
+          1419.0
+        ]
+      }
+    }
+  ],
+  "donut_charts": [
+    {
+      "column": "weather",
+      "label": "Weather",
+      "items": [
+        {
+          "value": "Clear",
+          "count": 1219,
+          "pct": 48.8
+        },
+        {
+          "value": "Hot",
+          "count": 562,
+          "pct": 22.5
+        },
+        {
+          "value": "Windy",
+          "count": 250,
+          "pct": 10.0
+        },
+        {
+          "value": "Rainy",
+          "count": 244,
+          "pct": 9.8
+        },
+        {
+          "value": "Dusty",
+          "count": 225,
+          "pct": 9.0
+        }
+      ]
+    },
+    {
+      "column": "traffic_level",
+      "label": "Traffic Level",
+      "items": [
+        {
+          "value": "Medium",
+          "count": 910,
+          "pct": 36.4
+        },
+        {
+          "value": "Low",
+          "count": 732,
+          "pct": 29.3
+        },
+        {
+          "value": "High",
+          "count": 582,
+          "pct": 23.3
+        },
+        {
+          "value": "Jam",
+          "count": 276,
+          "pct": 11.0
+        }
+      ]
+    },
+    {
+      "column": "vehicle_type",
+      "label": "Vehicle Type",
+      "items": [
+        {
+          "value": "Motorbike",
+          "count": 1885,
+          "pct": 75.4
+        },
+        {
+          "value": "Car",
+          "count": 395,
+          "pct": 15.8
+        },
+        {
+          "value": "Bicycle",
+          "count": 220,
+          "pct": 8.8
+        }
+      ]
+    }
+  ],
+  "bar_charts": [
+    {
+      "column": "area",
+      "label": "Area",
+      "items": [
+        {
+          "value": "DHA",
+          "count": 343,
+          "pct": 13.7
+        },
+        {
+          "value": "Gulshan-e-Iqbal",
+          "count": 336,
+          "pct": 13.4
+        },
+        {
+          "value": "PECHS",
+          "count": 335,
+          "pct": 13.4
+        },
+        {
+          "value": "North Nazimabad",
+          "count": 327,
+          "pct": 13.1
+        },
+        {
+          "value": "Clifton",
+          "count": 304,
+          "pct": 12.2
+        },
+        {
+          "value": "Saddar",
+          "count": 301,
+          "pct": 12.0
+        },
+        {
+          "value": "Malir",
+          "count": 288,
+          "pct": 11.5
+        },
+        {
+          "value": "Korangi",
+          "count": 266,
+          "pct": 10.6
+        }
+      ]
+    },
+    {
+      "column": "cuisine",
+      "label": "Cuisine",
+      "items": [
+        {
+          "value": "Desserts",
+          "count": 395,
+          "pct": 15.8
+        },
+        {
+          "value": "Biryani",
+          "count": 364,
+          "pct": 14.6
+        },
+        {
+          "value": "Pizza",
+          "count": 363,
+          "pct": 14.5
+        },
+        {
+          "value": "Fast Food",
+          "count": 359,
+          "pct": 14.4
+        },
+        {
+          "value": "Karahi",
+          "count": 352,
+          "pct": 14.1
+        },
+        {
+          "value": "BBQ",
+          "count": 341,
+          "pct": 13.6
+        },
+        {
+          "value": "Chinese",
+          "count": 326,
+          "pct": 13.0
+        }
+      ]
+    },
+    {
+      "column": "late_delivery",
+      "label": "Late Delivery",
+      "items": [
+        {
+          "value": "No",
+          "count": 1874,
+          "pct": 75.0
+        },
+        {
+          "value": "Yes",
+          "count": 626,
+          "pct": 25.0
+        }
+      ]
+    }
+  ],
+  "rating_breakdown": {
+    "column": "items_count",
+    "label": "Items Count",
+    "average": 4.39,
+    "min": 1.0,
+    "max": 8.0,
+    "breakdown": [
+      {
+        "value": 8,
+        "count": 292,
+        "pct": 11.7
+      },
+      {
+        "value": 7,
+        "count": 306,
+        "pct": 12.2
+      },
+      {
+        "value": 6,
+        "count": 302,
+        "pct": 12.1
+      },
+      {
+        "value": 5,
+        "count": 293,
+        "pct": 11.7
+      },
+      {
+        "value": 4,
+        "count": 292,
+        "pct": 11.7
+      },
+      {
+        "value": 3,
+        "count": 336,
+        "pct": 13.4
+      },
+      {
+        "value": 2,
+        "count": 359,
+        "pct": 14.4
+      },
+      {
+        "value": 1,
+        "count": 320,
+        "pct": 12.8
+      }
+    ]
+  },
+  "time_trend": {
+    "date_column": "order_time",
+    "labels": [
+      "2025-07-31",
+      "2025-08-31",
+      "2025-09-30",
+      "2025-10-31",
+      "2025-11-30",
+      "2025-12-31",
+      "2026-01-31",
+      "2026-02-28",
+      "2026-03-31",
+      "2026-04-30",
+      "2026-05-31",
+      "2026-06-30"
+    ],
+    "series": [
+      {
+        "name": "Row Count",
+        "values": [
+          208,
+          221,
+          204,
+          210,
+          200,
+          226,
+          195,
+          182,
+          205,
+          246,
+          203,
+          200
+        ]
+      },
+      {
+        "name": "Average Distance Km",
+        "values": [
+          4.9779,
+          5.3813,
+          5.2769,
+          5.4306,
+          5.3571,
+          5.0362,
+          5.1601,
+          5.2768,
+          5.3703,
+          5.3822,
+          5.0476,
+          5.1386
+        ]
+      }
+    ]
+  },
+  "filter_options": {
+    "categorical": {
+      "area": [
+        "Clifton",
+        "DHA",
+        "Gulshan-e-Iqbal",
+        "Korangi",
+        "Malir",
+        "North Nazimabad",
+        "PECHS",
+        "Saddar"
+      ],
+      "cuisine": [
+        "BBQ",
+        "Biryani",
+        "Chinese",
+        "Desserts",
+        "Fast Food",
+        "Karahi",
+        "Pizza"
+      ],
+      "weather": [
+        "Clear",
+        "Dusty",
+        "Hot",
+        "Rainy",
+        "Windy"
+      ],
+      "traffic_level": [
+        "High",
+        "Jam",
+        "Low",
+        "Medium"
+      ],
+      "vehicle_type": [
+        "Bicycle",
+        "Car",
+        "Motorbike"
+      ],
+      "late_delivery": [
+        "No",
+        "Yes"
+      ]
+    },
+    "date_ranges": {
+      "order_time": {
+        "min": "2025-07-01",
+        "max": "2026-06-30"
+      }
+    }
+  }
+}

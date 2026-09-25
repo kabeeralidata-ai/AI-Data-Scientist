@@ -1,0 +1,301 @@
+customer_id,age,region,plan,contract_type,tenure_months,monthly_charge,total_spend,support_tickets,satisfaction_score,signup_date,churn
+CUST-10000,58,South,Standard,Month-to-month,15,17.63,285.19,1,3.7,2024-07-02,0
+CUST-10001,19,North,Premium,One year,12,37.96,448.19,10,3.8,2024-05-26,0
+CUST-10002,73,West,Basic,Month-to-month,1,94.67,99.66,2,1.9,2024-07-04,1
+CUST-10003,40,West,Basic,One year,45,78.39,3381.64,6,1.3,2024-06-19,1
+CUST-10004,30,East,Basic,Two year,9,19.81,174.02,3,4.5,2024-06-06,0
+CUST-10005,41,North,Standard,One year,46,37.0,1615.13,2,3.1,2024-05-21,0
+CUST-10006,62,North,Standard,Month-to-month,72,38.06,2686.15,0,4.2,2024-10-23,0
+CUST-10007,38,West,Standard,Month-to-month,28,83.82,2375.77,2,2.0,2024-10-14,1
+CUST-10008,75,West,Basic,Month-to-month,52,53.01,2565.13,0,4.4,2024-11-14,0
+CUST-10009,56,West,Premium,One year,9,55.4,449.88,8,4.4,2024-11-18,1
+CUST-10010,66,North,Standard,Month-to-month,35,95.7,3653.51,2,2.8,2024-05-17,1
+CUST-10011,66,East,Basic,Two year,23,68.31,1462.04,8,3.4,2024-09-25,0
+CUST-10012,51,North,Standard,Month-to-month,1,77.89,83.06,5,4.5,2024-01-08,1
+CUST-10013,74,North,Standard,Two year,11,23.99,244.28,8,4.1,2024-09-06,0
+CUST-10014,34,South,Standard,Two year,68,106.61,7103.03,3,3.9,2024-06-15,0
+CUST-10015,75,South,Basic,Month-to-month,67,62.41,3955.77,0,3.4,2024-02-23,0
+CUST-10016,58,East,Basic,Month-to-month,8,39.04,311.41,3,2.1,2024-12-19,1
+CUST-10017,54,West,Standard,Month-to-month,61,40.51,2399.1,1,3.6,2024-12-02,0
+CUST-10018,61,East,Premium,Two year,13,21.36,260.48,1,2.0,2024-07-06,0
+CUST-10019,35,West,Basic,Two year,60,41.23,2549.08,8,1.4,2024-01-03,0
+CUST-10020,66,West,Standard,Month-to-month,31,32.46,938.77,6,4.6,2024-07-09,1
+CUST-10021,68,West,Premium,Month-to-month,59,44.95,2417.87,4,1.9,2024-01-24,1
+CUST-10022,38,South,Standard,Month-to-month,8,20.26,151.9,8,1.3,2024-11-28,1
+CUST-10023,33,South,Premium,One year,52,27.59,1411.5,0,3.5,2024-09-11,0
+CUST-10024,34,South,Standard,Month-to-month,27,85.32,2211.49,2,3.7,2024-02-01,0
+CUST-10025,47,East,Basic,Month-to-month,13,22.69,317.34,5,4.5,2024-03-15,1
+CUST-10026,71,North,Premium,One year,70,88.87,6424.18,8,2.2,2024-03-09,1
+CUST-10027,25,East,Basic,Month-to-month,14,92.95,1224.16,3,3.9,2024-05-17,1
+CUST-10028,49,North,Basic,One year,33,110.06,3511.08,4,1.2,2024-05-06,0
+CUST-10029,65,North,Standard,Month-to-month,57,72.93,4435.19,2,3.2,2024-03-14,0
+CUST-10030,26,East,Basic,Month-to-month,6,47.37,275.9,3,3.7,2024-07-20,1
+CUST-10031,65,South,Basic,Two year,20,112.21,2030.91,2,4.5,2024-06-26,0
+CUST-10032,44,North,Premium,Month-to-month,32,43.01,1299.92,0,4.4,2024-08-12,1
+CUST-10033,37,South,Premium,Month-to-month,30,38.41,1259.9,4,4.5,2024-11-17,0
+CUST-10034,43,North,Basic,Two year,69,49.77,3751.81,4,1.7,2024-02-20,0
+CUST-10035,45,West,Standard,One year,45,91.5,4446.49,8,1.5,2024-01-23,1
+CUST-10036,45,South,Premium,Month-to-month,1,69.59,75.45,1,4.8,2024-11-28,1
+CUST-10037,25,West,Premium,Month-to-month,39,68.25,2497.7,4,3.2,2024-07-22,0
+CUST-10038,65,West,Standard,One year,23,79.63,1725.33,0,2.2,2024-10-21,1
+CUST-10039,38,South,Premium,One year,60,61.39,3524.12,2,3.6,2024-10-11,0
+CUST-10040,23,South,Basic,Month-to-month,31,85.64,2641.64,0,2.0,2024-02-15,1
+CUST-10041,44,West,Standard,Month-to-month,25,90.43,2037.18,2,3.6,2024-02-25,1
+CUST-10042,45,West,Premium,Month-to-month,29,33.47,897.13,3,4.7,2024-08-22,0
+CUST-10043,51,West,Standard,Two year,72,77.52,5200.96,8,2.8,2024-08-09,0
+CUST-10044,66,West,Standard,One year,32,103.19,3443.11,4,2.8,2024-06-11,0
+CUST-10045,75,South,Basic,Month-to-month,70,23.46,1499.08,2,3.8,2024-09-15,0
+CUST-10046,44,West,Standard,Two year,8,36.72,265.53,9,4.8,2024-10-13,1
+CUST-10047,48,West,Standard,Two year,1,113.99,119.34,6,3.2,2024-04-16,1
+CUST-10048,32,West,Basic,Month-to-month,35,60.76,2221.95,10,4.2,2024-03-20,1
+CUST-10049,52,North,Premium,Month-to-month,4,110.23,437.54,6,1.5,2024-07-11,1
+CUST-10050,31,East,Standard,One year,59,49.32,2666.56,6,2.0,2024-09-02,0
+CUST-10051,40,North,Premium,One year,29,83.27,2183.19,3,1.8,2024-03-16,0
+CUST-10052,60,West,Basic,One year,15,74.22,1137.18,5,1.7,2024-02-25,1
+CUST-10053,70,North,Basic,Two year,21,116.3,2666.1,9,3.7,2024-12-07,0
+CUST-10054,22,North,Standard,One year,32,25.7,797.27,9,4.1,2024-06-03,0
+CUST-10055,50,West,Standard,Month-to-month,44,16.33,765.76,5,3.5,2024-07-06,1
+CUST-10056,64,West,Standard,Month-to-month,67,116.37,8345.24,9,2.1,2024-02-09,1
+CUST-10057,74,West,Standard,Month-to-month,58,40.61,2205.5,7,4.4,2024-05-11,0
+CUST-10058,35,South,Premium,Month-to-month,36,73.36,2777.32,6,3.0,2024-11-23,1
+CUST-10059,49,East,Basic,Month-to-month,58,98.26,5792.04,3,2.2,2024-09-12,1
+CUST-10060,45,West,Premium,Month-to-month,71,49.73,3687.09,4,1.9,2024-12-18,1
+CUST-10061,66,West,Premium,Month-to-month,24,35.11,846.79,9,4.9,2024-02-27,1
+CUST-10062,30,East,Basic,Month-to-month,38,38.89,1343.49,8,1.5,2024-05-23,1
+CUST-10063,26,East,Basic,Month-to-month,63,25.77,1774.66,7,2.4,2024-08-04,1
+CUST-10064,70,North,Basic,Month-to-month,9,57.07,471.02,9,4.8,2024-09-25,1
+CUST-10065,44,West,Standard,Two year,29,96.45,3071.18,4,4.4,2024-10-02,0
+CUST-10066,57,South,Basic,Month-to-month,13,114.5,1391.39,1,1.6,2024-01-14,1
+CUST-10067,46,East,Basic,One year,61,45.58,2632.14,7,1.3,2024-11-19,0
+CUST-10068,60,South,Premium,One year,26,59.64,1417.72,4,4.3,2024-05-20,0
+CUST-10069,65,East,Standard,One year,37,61.11,2258.26,4,3.0,2024-01-14,0
+CUST-10070,65,North,Basic,Month-to-month,42,78.39,3341.9,10,4.3,2024-11-27,1
+CUST-10071,35,West,Basic,One year,6,95.13,534.42,7,4.7,2024-11-27,1
+CUST-10072,49,East,Standard,Month-to-month,12,64.35,745.91,1,4.4,2024-05-22,1
+CUST-10073,43,East,Basic,Month-to-month,71,18.85,1312.7,1,4.9,2024-01-22,0
+CUST-10074,73,South,Basic,One year,70,63.51,4557.21,9,4.0,2024-04-09,0
+CUST-10075,53,West,Standard,Month-to-month,17,112.41,1811.33,10,3.4,2024-09-01,1
+CUST-10076,53,West,Basic,Two year,53,24.79,1313.44,10,4.3,2024-09-23,0
+CUST-10077,35,South,Standard,Month-to-month,54,102.65,6010.79,2,2.5,2024-03-28,1
+CUST-10078,22,East,Standard,Two year,36,96.13,3116.39,8,2.1,2024-10-19,1
+CUST-10079,60,West,Standard,Month-to-month,63,105.85,6504.78,8,4.1,2024-04-23,1
+CUST-10080,33,North,Standard,Month-to-month,50,39.52,2099.07,7,3.8,2024-11-26,1
+CUST-10081,70,South,Basic,One year,20,67.01,1233.08,9,2.3,2024-02-17,1
+CUST-10082,47,South,Standard,Month-to-month,2,90.86,188.72,4,2.4,2024-06-28,1
+CUST-10083,61,West,Standard,Two year,69,54.9,3587.16,0,3.5,2024-05-08,0
+CUST-10084,65,North,Basic,Month-to-month,12,60.57,660.84,4,4.6,2024-05-12,1
+CUST-10085,41,West,Premium,One year,56,30.28,1552.89,2,1.7,2024-10-22,0
+CUST-10086,33,South,Basic,Month-to-month,64,110.85,7331.13,4,2.8,2024-08-10,1
+CUST-10087,61,East,Standard,Two year,70,31.59,2177.82,4,3.6,2024-05-07,0
+CUST-10088,42,East,Standard,One year,62,26.2,1731.62,4,1.1,2024-01-19,0
+CUST-10089,73,West,Premium,Two year,7,110.61,732.48,4,4.1,2024-04-21,0
+CUST-10090,30,South,Premium,One year,33,86.17,2734.95,10,3.6,2024-10-12,0
+CUST-10091,64,East,Standard,One year,17,24.46,439.65,2,1.8,2024-06-17,1
+CUST-10092,50,West,Standard,Two year,35,102.2,3461.62,4,4.0,2024-02-05,0
+CUST-10093,66,West,Premium,Two year,29,105.31,3231.54,8,2.5,2024-09-04,0
+CUST-10094,47,East,Premium,One year,48,85.65,3789.17,10,4.8,2024-01-20,0
+CUST-10095,74,South,Premium,One year,72,49.44,3851.14,10,4.3,2024-07-04,0
+CUST-10096,26,West,Standard,Month-to-month,6,114.36,636.16,3,4.5,2024-11-24,1
+CUST-10097,62,South,Premium,Two year,70,59.01,4121.9,10,1.4,2024-05-02,0
+CUST-10098,62,South,Standard,Two year,48,37.81,1766.73,1,4.9,2024-11-12,0
+CUST-10099,21,West,Basic,Month-to-month,51,43.97,2286.04,3,3.6,2024-06-08,0
+CUST-10100,26,South,Premium,One year,27,22.2,557.15,3,2.3,2024-01-09,1
+CUST-10101,72,East,Premium,One year,19,118.69,2041.23,1,3.6,2024-04-19,0
+CUST-10102,38,South,Basic,One year,3,33.3,91.18,8,1.5,2024-06-17,1
+CUST-10103,55,North,Basic,One year,14,62.46,867.1,10,3.1,2024-01-16,1
+CUST-10104,72,West,Basic,One year,52,59.76,2846.98,7,1.3,2024-02-05,1
+CUST-10105,35,East,Standard,Month-to-month,71,89.78,6748.04,9,2.7,2024-11-21,0
+CUST-10106,74,West,Basic,Month-to-month,71,90.69,6860.64,3,2.7,2024-12-04,0
+CUST-10107,38,East,Standard,Two year,55,47.81,2401.9,10,4.7,2024-02-14,0
+CUST-10108,24,North,Premium,One year,48,100.24,4975.12,8,3.2,2024-11-25,0
+CUST-10109,45,East,Premium,Month-to-month,7,116.68,760.36,9,3.0,2024-02-12,1
+CUST-10110,72,South,Standard,Two year,72,53.59,4104.21,8,4.9,2024-11-18,0
+CUST-10111,19,East,Standard,Two year,35,18.04,678.11,5,1.0,2024-07-03,1
+CUST-10112,27,South,Premium,Month-to-month,4,24.63,95.96,7,2.4,2024-10-20,1
+CUST-10113,23,North,Premium,One year,7,31.34,216.05,4,2.8,2024-07-09,1
+CUST-10114,31,North,Standard,Month-to-month,66,26.95,1788.28,10,3.4,2024-04-13,1
+CUST-10115,56,South,Standard,One year,8,15.81,116.87,4,2.2,2024-07-06,1
+CUST-10116,26,East,Basic,Month-to-month,49,70.92,3447.11,0,2.7,2024-06-19,0
+CUST-10117,45,East,Standard,Month-to-month,52,89.5,4348.58,0,4.9,2024-08-27,0
+CUST-10118,62,South,Basic,Month-to-month,47,24.25,1115.99,6,3.1,2024-06-08,1
+CUST-10119,39,North,Premium,One year,22,23.02,491.18,3,4.6,2024-11-27,0
+CUST-10120,27,South,Standard,Month-to-month,31,25.79,824.36,2,4.0,2024-11-16,0
+CUST-10121,47,East,Premium,Two year,58,86.52,4957.7,10,2.3,2024-11-10,0
+CUST-10122,68,North,Standard,Month-to-month,36,77.1,2702.73,7,1.2,2024-11-28,1
+CUST-10123,72,West,Premium,Month-to-month,12,79.58,1000.59,8,4.8,2024-10-21,1
+CUST-10124,30,South,Premium,Two year,42,78.53,3561.54,7,1.4,2024-12-03,0
+CUST-10125,50,West,Premium,Two year,23,19.11,409.53,8,3.1,2024-05-13,0
+CUST-10126,44,East,Basic,Month-to-month,44,86.28,3710.19,1,3.2,2024-11-20,0
+CUST-10127,73,South,Premium,Two year,20,50.0,1039.7,4,4.9,2024-10-23,0
+CUST-10128,23,East,Premium,Two year,40,73.69,3211.18,10,3.8,2024-09-03,0
+CUST-10129,59,East,Basic,Month-to-month,55,68.39,3961.68,3,2.4,2024-03-05,1
+CUST-10130,22,North,Basic,One year,38,103.66,3841.96,9,1.5,2024-12-25,1
+CUST-10131,57,West,Basic,Month-to-month,22,90.72,2039.99,3,4.9,2024-08-08,1
+CUST-10132,52,South,Standard,Month-to-month,31,47.49,1460.91,9,4.9,2024-07-17,1
+CUST-10133,51,South,Basic,Two year,54,116.46,6759.39,0,3.6,2024-02-23,0
+CUST-10134,72,North,Standard,One year,67,104.37,7011.46,4,2.8,2024-02-08,0
+CUST-10135,70,West,Basic,Month-to-month,58,107.89,6115.15,8,2.5,2024-04-01,1
+CUST-10136,38,East,Premium,One year,13,103.11,1452.33,2,1.2,2024-03-25,1
+CUST-10137,63,North,Basic,Month-to-month,61,62.1,3825.08,3,4.3,2024-09-14,0
+CUST-10138,25,North,Basic,Month-to-month,37,39.95,1465.47,10,4.2,2024-08-20,0
+CUST-10139,52,South,Premium,One year,3,81.36,249.68,4,2.7,2024-07-06,0
+CUST-10140,60,North,Standard,Two year,11,69.97,844.84,8,3.0,2024-07-28,1
+CUST-10141,48,East,Standard,One year,6,81.75,475.28,5,4.2,2024-11-04,1
+CUST-10142,67,East,Standard,Two year,43,29.01,1293.51,2,4.3,2024-08-21,0
+CUST-10143,29,North,Standard,Month-to-month,18,21.63,419.38,0,4.2,2024-05-17,0
+CUST-10144,43,South,Basic,Month-to-month,70,64.71,4377.43,0,4.5,2024-06-14,0
+CUST-10145,74,East,Standard,Two year,52,93.05,4710.23,7,3.8,2024-05-26,0
+CUST-10146,23,South,Premium,One year,55,23.29,1236.86,5,1.4,2024-08-20,0
+CUST-10147,63,East,Standard,Month-to-month,55,32.5,1764.24,5,3.5,2024-01-03,1
+CUST-10148,60,South,Premium,Two year,52,53.15,2862.24,2,4.4,2024-03-03,0
+CUST-10149,33,North,Premium,One year,47,53.03,2428.09,10,2.8,2024-02-19,0
+CUST-10150,26,East,Standard,Month-to-month,68,53.53,3411.48,1,1.1,2024-09-04,1
+CUST-10151,34,East,Basic,One year,34,88.92,2803.02,7,1.8,2024-03-23,1
+CUST-10152,46,East,Standard,One year,12,100.1,1295.21,8,3.2,2024-12-23,1
+CUST-10153,62,South,Premium,Month-to-month,23,98.34,2142.73,3,4.2,2024-06-18,1
+CUST-10154,54,South,Premium,One year,48,64.08,3013.19,1,1.3,2024-08-17,0
+CUST-10155,44,South,Basic,Two year,53,101.45,5340.11,10,1.3,2024-03-27,1
+CUST-10156,67,South,Basic,Month-to-month,71,82.18,5855.9,0,4.3,2024-03-11,0
+CUST-10157,63,East,Premium,Two year,29,51.33,1624.43,4,1.8,2024-11-10,0
+CUST-10158,57,South,Premium,One year,69,24.81,1766.24,9,1.6,2024-10-11,1
+CUST-10159,71,North,Basic,Month-to-month,6,101.65,581.19,10,4.1,2024-10-14,1
+CUST-10160,57,East,Premium,One year,4,67.29,285.56,4,2.9,2024-05-15,1
+CUST-10161,22,West,Standard,Month-to-month,8,31.6,243.32,5,3.4,2024-12-28,1
+CUST-10162,40,North,Standard,Month-to-month,52,28.73,1478.9,7,1.5,2024-01-10,1
+CUST-10163,42,East,Basic,Two year,54,41.07,2066.68,5,1.8,2024-08-16,1
+CUST-10164,74,West,Basic,One year,40,67.22,2609.69,3,1.9,2024-08-20,0
+CUST-10165,74,North,Basic,Month-to-month,61,45.0,2889.86,4,3.9,2024-07-02,0
+CUST-10166,54,East,Premium,Month-to-month,72,35.44,2577.12,8,2.8,2024-10-22,1
+CUST-10167,57,West,Basic,Month-to-month,16,28.51,443.9,5,3.2,2024-10-17,1
+CUST-10168,43,South,Basic,One year,65,19.23,1162.19,7,3.1,2024-03-11,0
+CUST-10169,57,East,Premium,One year,41,32.06,1322.96,8,4.3,2024-05-16,0
+CUST-10170,70,North,Premium,Two year,3,53.68,173.88,9,2.2,2024-11-01,1
+CUST-10171,56,South,Premium,One year,61,42.88,2628.36,9,2.9,2024-07-05,0
+CUST-10172,70,North,Premium,Month-to-month,32,18.31,545.07,7,2.3,2024-07-17,1
+CUST-10173,67,North,Premium,One year,61,106.65,6278.02,8,1.8,2024-09-13,1
+CUST-10174,38,East,Premium,One year,23,63.26,1519.27,10,4.1,2024-12-09,0
+CUST-10175,57,East,Basic,One year,62,35.19,2392.22,3,4.8,2024-12-07,0
+CUST-10176,62,East,Standard,Month-to-month,63,48.29,2969.07,9,3.7,2024-06-25,1
+CUST-10177,69,North,Standard,Month-to-month,19,45.5,907.26,7,3.6,2024-09-09,1
+CUST-10178,53,South,Premium,Month-to-month,35,29.41,972.87,10,4.6,2024-02-14,1
+CUST-10179,39,North,Basic,Two year,61,25.56,1694.82,2,2.6,2024-08-21,0
+CUST-10180,30,North,Premium,Two year,37,48.72,1706.1,1,3.6,2024-01-06,0
+CUST-10181,44,West,Basic,One year,23,113.06,2840.72,2,4.7,2024-01-01,0
+CUST-10182,37,East,Standard,Month-to-month,14,112.49,1572.94,10,3.2,2024-09-15,1
+CUST-10183,35,South,Standard,One year,25,99.93,2341.46,10,2.0,2024-05-19,1
+CUST-10184,61,West,Premium,Two year,25,33.43,819.17,8,2.3,2024-03-16,0
+CUST-10185,38,South,Standard,Month-to-month,32,15.72,483.11,4,4.8,2024-01-09,1
+CUST-10186,59,North,Basic,Month-to-month,47,87.74,4125.86,2,2.6,2024-12-25,1
+CUST-10187,37,East,Standard,One year,16,82.06,1307.23,3,4.8,2024-10-12,0
+CUST-10188,44,South,Premium,One year,71,110.84,8456.93,10,4.0,2024-08-17,0
+CUST-10189,63,North,Premium,Month-to-month,47,23.2,1025.45,8,4.6,2024-03-11,1
+CUST-10190,72,South,Premium,One year,67,61.39,4121.67,7,1.4,2024-08-05,1
+CUST-10191,50,West,Basic,One year,54,62.96,3329.09,4,3.9,2024-12-07,0
+CUST-10192,55,North,Standard,One year,10,19.76,180.57,0,4.7,2024-01-10,1
+CUST-10193,44,West,Premium,Month-to-month,24,95.74,2489.45,6,2.8,2024-02-22,1
+CUST-10194,60,North,Standard,Month-to-month,70,28.96,1876.11,8,2.6,2024-01-25,1
+CUST-10195,19,West,Premium,One year,39,63.62,2404.84,3,2.0,2024-12-25,0
+CUST-10196,25,North,Standard,Month-to-month,5,100.0,453.36,1,1.4,2024-12-28,1
+CUST-10197,21,West,Standard,Month-to-month,32,92.76,3132.21,3,4.0,2024-05-08,1
+CUST-10198,70,East,Premium,Month-to-month,41,75.63,3114.01,2,4.9,2024-05-02,0
+CUST-10199,53,West,Standard,Month-to-month,23,80.73,1920.42,5,4.8,2024-06-23,1
+CUST-10200,44,South,Standard,One year,53,30.67,1536.22,7,2.0,2024-03-26,1
+CUST-10201,47,South,Standard,Month-to-month,8,74.05,609.78,4,1.8,2024-06-03,1
+CUST-10202,52,North,Standard,Two year,25,20.41,519.19,3,4.2,2024-04-16,0
+CUST-10203,31,South,Basic,Two year,43,46.83,2116.12,1,4.0,2024-12-20,0
+CUST-10204,63,East,Basic,One year,27,56.65,1575.05,6,2.9,2024-06-17,0
+CUST-10205,74,West,Premium,One year,64,63.93,3985.72,5,4.7,2024-10-28,0
+CUST-10206,32,West,Premium,Month-to-month,19,16.7,309.67,3,2.3,2024-08-18,1
+CUST-10207,59,West,Standard,Month-to-month,44,42.02,1930.35,5,1.7,2024-09-21,1
+CUST-10208,21,North,Basic,One year,68,18.55,1294.37,6,1.5,2024-03-01,0
+CUST-10209,31,West,Basic,One year,65,62.88,4129.42,0,1.0,2024-09-24,0
+CUST-10210,35,West,Basic,Two year,69,117.64,7461.8,2,1.4,2024-04-20,0
+CUST-10211,51,West,Standard,Month-to-month,33,100.6,3149.3,6,2.8,2024-05-22,1
+CUST-10212,70,North,Premium,Month-to-month,11,83.64,915.62,6,2.5,2024-12-06,1
+CUST-10213,23,East,Premium,One year,64,103.76,7197.33,1,4.6,2024-12-19,0
+CUST-10214,48,East,Basic,Two year,35,19.89,651.51,9,3.6,2024-01-07,1
+CUST-10215,55,West,Premium,Two year,19,93.99,1693.12,4,1.6,2024-07-22,1
+CUST-10216,75,South,Premium,One year,70,49.83,3819.0,1,3.0,2024-07-08,0
+CUST-10217,71,West,Premium,Two year,10,50.76,484.59,5,1.1,2024-08-08,1
+CUST-10218,40,South,Standard,One year,71,113.82,8521.11,10,2.5,2024-04-23,0
+CUST-10219,22,South,Standard,One year,11,43.14,435.77,5,2.4,2024-08-12,1
+CUST-10220,66,South,Basic,Month-to-month,35,25.73,883.99,8,3.2,2024-06-18,1
+CUST-10221,23,East,Basic,Month-to-month,42,105.69,4491.84,1,3.9,2024-04-19,1
+CUST-10222,51,South,Basic,Month-to-month,22,86.96,1746.02,4,3.0,2024-07-10,1
+CUST-10223,48,West,Basic,One year,10,52.92,490.62,3,2.8,2024-07-11,0
+CUST-10224,71,West,Standard,Month-to-month,49,99.43,4517.5,10,4.9,2024-12-07,1
+CUST-10225,48,East,Standard,Month-to-month,41,33.65,1400.59,10,3.0,2024-07-09,1
+CUST-10226,70,South,Premium,One year,51,53.33,2865.41,8,1.7,2024-12-15,0
+CUST-10227,63,North,Standard,Two year,27,61.04,1529.15,6,3.7,2024-05-22,0
+CUST-10228,27,West,Basic,Two year,55,97.85,5418.74,7,3.3,2024-12-14,0
+CUST-10229,52,North,Standard,Month-to-month,5,98.03,475.94,3,3.6,2024-01-19,1
+CUST-10230,59,West,Standard,Month-to-month,52,116.52,6071.98,1,2.0,2024-10-23,1
+CUST-10231,54,West,Standard,One year,29,61.81,1667.28,9,3.8,2024-08-04,1
+CUST-10232,36,North,Basic,Two year,54,111.66,5840.39,2,2.4,2024-09-16,0
+CUST-10233,40,West,Premium,Month-to-month,61,25.25,1605.18,4,1.2,2024-06-21,0
+CUST-10234,24,South,Premium,One year,22,112.64,2507.74,8,1.6,2024-04-26,1
+CUST-10235,43,West,Premium,Month-to-month,24,34.57,821.31,9,4.5,2024-01-23,1
+CUST-10236,31,North,Premium,One year,27,44.23,1152.65,8,1.7,2024-05-22,1
+CUST-10237,73,East,Premium,One year,63,70.41,4093.59,9,2.6,2024-08-20,0
+CUST-10238,29,North,Premium,One year,39,111.46,4177.74,5,1.5,2024-12-05,1
+CUST-10239,50,West,Basic,Month-to-month,50,58.92,3059.97,7,3.5,2024-03-18,1
+CUST-10240,28,East,Basic,Two year,63,45.33,2775.28,9,1.2,2024-03-07,0
+CUST-10241,70,West,Premium,Month-to-month,50,116.2,6204.95,7,2.7,2024-02-19,1
+CUST-10242,19,South,Standard,One year,29,45.67,1341.82,2,4.1,2024-08-18,0
+CUST-10243,50,East,Standard,One year,15,75.13,1113.73,0,4.0,2024-07-04,0
+CUST-10244,65,West,Basic,Month-to-month,32,46.26,1626.56,1,2.8,2024-04-07,1
+CUST-10245,69,West,Premium,Month-to-month,45,105.41,5040.89,2,4.1,2024-10-12,0
+CUST-10246,52,East,Basic,Two year,36,77.67,2666.01,4,2.2,2024-11-27,0
+CUST-10247,24,North,Standard,Two year,18,116.09,2242.61,10,1.5,2024-12-11,1
+CUST-10248,71,West,Premium,Month-to-month,32,94.95,3116.07,9,3.5,2024-02-21,1
+CUST-10249,68,East,Premium,One year,12,57.3,685.96,5,2.8,2024-12-03,1
+CUST-10250,64,East,Premium,Two year,59,81.66,5269.02,8,2.6,2024-08-09,0
+CUST-10251,38,South,Premium,One year,37,50.46,2014.2,7,4.2,2024-01-04,0
+CUST-10252,58,West,Basic,Month-to-month,59,16.71,1023.08,6,1.8,2024-11-10,1
+CUST-10253,28,East,Standard,Month-to-month,36,24.8,833.08,10,4.6,2024-05-24,0
+CUST-10254,62,North,Basic,Month-to-month,30,60.07,1835.86,7,1.3,2024-08-01,1
+CUST-10255,18,South,Standard,Month-to-month,44,100.8,4639.9,3,2.5,2024-06-12,0
+CUST-10256,74,South,Basic,Month-to-month,39,29.4,1181.0,9,1.0,2024-12-07,1
+CUST-10257,58,West,Premium,Two year,20,111.59,2071.12,1,4.6,2024-12-13,0
+CUST-10258,40,South,Basic,Month-to-month,55,48.02,2694.45,1,2.0,2024-05-25,1
+CUST-10259,62,East,Premium,Month-to-month,4,104.03,436.75,9,3.0,2024-01-26,1
+CUST-10260,75,South,Basic,Month-to-month,31,66.96,2237.14,9,1.3,2024-06-11,1
+CUST-10261,26,West,Premium,Month-to-month,50,105.39,5238.95,10,1.7,2024-02-01,1
+CUST-10262,55,North,Basic,Two year,9,16.45,151.86,6,3.0,2024-07-14,1
+CUST-10263,62,South,Premium,Month-to-month,52,23.65,1333.33,4,1.3,2024-03-18,1
+CUST-10264,38,North,Premium,Month-to-month,51,76.58,4176.21,6,3.9,2024-02-14,0
+CUST-10265,25,East,Basic,One year,59,79.29,4322.05,10,4.0,2024-12-01,0
+CUST-10266,28,East,Premium,Month-to-month,64,115.07,7914.55,2,4.0,2024-02-25,1
+CUST-10267,75,East,Standard,One year,4,50.18,203.8,4,3.8,2024-08-17,0
+CUST-10268,41,South,Premium,Month-to-month,8,67.46,582.24,4,4.1,2024-02-08,1
+CUST-10269,65,South,Basic,Month-to-month,66,15.27,937.29,5,2.5,2024-01-18,1
+CUST-10270,69,West,Basic,Two year,54,38.57,1906.95,5,2.1,2024-09-22,0
+CUST-10271,75,North,Premium,Two year,7,33.83,254.15,1,4.5,2024-05-11,0
+CUST-10272,23,South,Standard,Month-to-month,71,62.96,4240.02,4,4.0,2024-08-25,0
+CUST-10273,67,South,Premium,Month-to-month,26,91.91,2409.52,6,1.1,2024-12-01,1
+CUST-10274,39,East,Standard,Month-to-month,1,94.69,93.17,8,4.9,2024-03-23,1
+CUST-10275,35,West,Basic,One year,12,19.61,246.99,5,2.8,2024-09-05,1
+CUST-10276,58,North,Premium,Month-to-month,51,22.86,1110.13,2,1.9,2024-07-23,1
+CUST-10277,71,South,Standard,Month-to-month,42,48.4,2142.63,3,1.5,2024-02-06,0
+CUST-10278,46,East,Basic,Two year,60,47.97,2857.1,3,2.8,2024-02-06,0
+CUST-10279,69,North,Premium,Month-to-month,39,101.77,4136.65,5,1.6,2024-07-17,1
+CUST-10280,21,North,Basic,Two year,39,42.32,1667.02,7,3.2,2024-02-26,0
+CUST-10281,68,South,Basic,Month-to-month,18,27.75,512.52,6,2.5,2024-10-19,1
+CUST-10282,34,South,Basic,Two year,10,17.29,158.79,7,4.2,2024-06-04,1
+CUST-10283,20,West,Premium,Two year,60,20.32,1190.6,6,3.0,2024-06-07,0
+CUST-10284,29,North,Basic,One year,36,44.38,1532.21,9,2.0,2024-09-16,1
+CUST-10285,21,West,Basic,Month-to-month,12,44.38,585.19,8,2.0,2024-01-13,1
+CUST-10286,68,East,Standard,Two year,46,65.37,2868.96,8,2.3,2024-10-08,0
+CUST-10287,19,East,Standard,One year,36,21.15,700.51,3,4.9,2024-05-18,0
+CUST-10288,70,West,Basic,Month-to-month,8,95.23,775.94,2,1.7,2024-12-12,1
+CUST-10289,55,South,Standard,One year,4,88.86,377.51,3,4.3,2024-09-10,1
+CUST-10290,29,South,Basic,One year,63,18.99,1076.9,0,3.1,2024-04-26,0
+CUST-10291,26,North,Standard,Month-to-month,44,90.28,3687.63,9,3.8,2024-09-28,1
+CUST-10292,41,West,Premium,One year,10,54.23,502.87,5,2.2,2024-07-26,1
+CUST-10293,58,East,Basic,Month-to-month,63,83.16,5111.65,9,4.3,2024-05-05,1
+CUST-10294,29,West,Premium,Two year,1,114.62,116.97,9,1.1,2024-10-08,1
+CUST-10295,58,East,Basic,One year,14,113.35,1529.62,3,2.4,2024-02-27,1
+CUST-10296,63,South,Standard,Month-to-month,43,61.9,2814.49,1,2.4,2024-01-13,1
+CUST-10297,46,West,Standard,Two year,54,116.76,5802.44,5,3.2,2024-10-21,0
+CUST-10298,66,North,Basic,Month-to-month,29,32.08,856.77,5,2.0,2024-07-06,1
+CUST-10299,64,East,Basic,One year,10,72.44,754.03,9,4.6,2024-11-06,1

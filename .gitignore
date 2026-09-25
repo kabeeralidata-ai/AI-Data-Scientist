@@ -1,0 +1,42 @@
+# Env
+.env
+.env.local
+*.env
+
+# Backend
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.egg-info/
+backend/.pytest_cache/
+backend/test.db
+backend/test_storage/
+backend/htmlcov/
+backend/.coverage
+
+# Storage
+storage/uploads/*
+storage/models/*
+storage/reports/*
+!storage/uploads/.gitkeep
+!storage/models/.gitkeep
+!storage/reports/.gitkeep
+
+# Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/coverage/
+frontend/.env.local
+frontend/AGENTS.md
+frontend/CLAUDE.md
+frontend/*.log
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Docker
+*.pid
