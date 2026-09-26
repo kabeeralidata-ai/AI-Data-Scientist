@@ -13,9 +13,9 @@ file alone and continue correctly._
 | Phase | Status | Notes |
 |---|---|---|
 | 0 — Audit | ✅ Done | See below |
-| 1 — Benchmark harness | ✅ Done | All 6 datasets present and running: **60/64 checks pass** (2026-09-26). See "Full 6-dataset baseline" below for the exact table and the 4 remaining, individually-diagnosed failures. |
-| 2 — Data Understanding | 🟡 Partial | Target-candidate scoring, single-threshold leakage, and post-outcome hints hardened this session (Findings 8-11) — but still living in `dataset_service`/`ml_service`, not yet merged into `data_understanding_service` as the single source of truth. Broader scope (new roles, unit tracking, Gemini tie-breaker) still open — see "Next step". |
-| 3 — Cleaning | ⬜ Not started | Partially done in a prior task (`column_roles`-aware, backward compatible). Needs the plausibility-range work this phase specifies — concretely motivated now by Finding 12 (telecom fraud values). |
+| 1 — Benchmark harness | ✅ Done | All 6 datasets present and running. |
+| 2 — Data Understanding | ✅ Done (this round's scope) | Role-based post-outcome detection now lives in `data_understanding_service` (Findings 13-15) — genuinely target-independent, structural evidence, replacing the old correlation-based heuristic. `detect_dataset_type` reordering fix. Full benchmark: **61/64** (2026-09-26). Broader Phase 2 scope (new roles: count/rate/free-text, per-column unit tracking, Gemini tie-breaker for targets, full target-scoring merge) still open — see "Next step" — deliberately deferred, not required for this round's stated goal (role-based post-outcome + complaints_last_6_months). |
+| 3 — Cleaning | 🔄 In progress | Motivated directly by Finding 12 (telecom fraud values distorting clustering) — plausibility-range work depends on Phase 2's column roles, now in place. |
 | 4 — Planner | ⬜ Not started | `transaction_analysis_service.build_analysis_plan()` exists for transaction logs only; no segmentation/prediction planner yet |
 | 5 — Modeling safety | 🟡 Partial | Batch prediction now reconstructs date-derived features from raw uploads (Finding 11) — but `return_prediction_service.py` still bypasses `ml_service`'s safety entirely (Phase 0 finding #2, unchanged). |
 | 6 — Adaptive report | ⬜ Not started | Report sections are hardcoded template branches (model/clusters/transaction_analysis), not truly plan-driven — see Phase 0 finding #3 |
@@ -247,7 +247,7 @@ alone, confirms it's suggested without formula info, then confirms it's excluded
 formula_columns is supplied. Full suite: 243/243 passing. Full benchmark: 27/27 (no
 regression from either fix).
 
-## Full 6-dataset baseline (2026-09-26, after Findings 8-12 below) — 60/64 checks pass
+## Full 6-dataset baseline — Phase 1 (2026-09-26, after Findings 8-12) — 60/64 — superseded below
 
 ```
 customer_churn_dataset.csv:        10/10 PASS
@@ -267,8 +267,8 @@ The 4 remaining failures, each individually diagnosed (none is a silent/unknown 
 
 1. **retail: `customer_rating` not excluded as post-outcome** — root-caused in Finding 10
    below; a real, disclosed limitation of correlation-based post-outcome detection, not a
-   quick-fixable bug. User decision (2026-09-26): leave as-is, revisit as part of the
-   proper Phase 2 role-based merge.
+   quick-fixable bug. User decision (2026-09-26): leave as-is at the time, revisit as part
+   of the proper Phase 2 role-based merge — **done, see Phase 2 baseline below.**
 2. **retail: Nov-Dec revenue peak not visible in report** — pre-existing, documented Phase
    4/6 gap (report architecture has no seasonal-peak narrative for the plain-regression
    path yet; only the transaction-log path's forecast section has this).
@@ -415,14 +415,122 @@ rare-negative-value check, generalized to an upper bound too) — a bigger, shar
 mechanism, not a one-off patch in `run_clustering_analysis()`. Documented here so Phase 3
 picks this up as a concrete, pre-verified test case rather than starting from scratch.
 
+## Phase 2 — role-based Data Understanding merge (2026-09-26)
+
+Scope for this round (per explicit direction): fix Finding 10's post-outcome detection
+properly as a column ROLE in `data_understanding_service`, independent of whichever
+target is chosen, and confirm `complaints_last_6_months` stays un-flagged. The broader
+Phase 2 scope (new roles, unit tracking, Gemini tie-breaker, full target-scoring merge)
+remains open — see "Next step" — deliberately deferred, not required for this goal.
+
+### Finding 13 — `detect_dataset_type` misclassified every customer-level dataset with a signup date — ✅ FIXED
+
+`customer_churn_dataset.csv`, `customer_retention_training.csv`, and
+`telecom_subscribers_usage.csv` all have a customer identifier with (nearly) one row per
+customer — textbook `customer_level` — but all three were classified `general` instead.
+Root cause: the `customer_level` branch required `not has_timestamp`, so a signup/
+activation date (a per-customer ATTRIBUTE) incorrectly disqualified it, as if any
+timestamp column implied a per-event/per-period log.
+
+**Fix applied**: `detect_dataset_type()` now checks a customer identifier's
+rows-per-customer ratio FIRST, before any timestamp-based branch. Verified against all 6
+real datasets: churn/retention/telecom now correctly report `customer_level`;
+retail/karachi (no customer_id column at all) stay `time_series`, unaffected; coffee_shop
+stays `transaction_log`, unaffected. New regression tests in
+`tests/test_data_understanding_roles.py`.
+
+### Finding 14 — post-outcome detection rebuilt as a column ROLE, not a correlation-vs-target heuristic — ✅ FIXED
+
+Per Finding 10's disclosed limitation (a genuine leak and pure statistical noise can both
+show under 1% correlation — no threshold can tell them apart), `detect_post_outcome_features()`
+is replaced entirely. The new `data_understanding_service.detect_post_outcome_columns()`
+uses a target-INDEPENDENT structural signal instead: the same post-outcome word
+(tip/rating/review/refund/complaint/late/cancelled/return/...) means "this row's own
+reaction" in a `transaction_log`/`time_series` dataset (one row per event, verified via
+Finding 13's corrected rows-per-identifier check) but "an accumulated historical
+attribute" in a `customer_level`/`general` dataset (one row per entity) — and must only
+fire in the former.
+
+A nuance found and fixed while verifying against real data: karachi's `rider_rating` (the
+rider's own pre-existing reputation, legitimately known in advance) matches "rating" by
+name just like `customer_rating` (this delivery's own post-hoc feedback) — both live in
+the same `time_series` dataset, so the structural gate alone doesn't separate them. Added
+a narrow, separately-justified vocabulary: a REPUTATION word (rating/review/feedback/
+satisfaction/resolved) paired with a SERVICE-PROVIDER word (rider/driver/courier/agent/
+seller/vendor/staff) names that provider's own track record, not a reaction to this row —
+`tip`/`refund`/`late`/`cancelled`/`complaint`/`return` are deliberately NOT covered by
+this exception, since a rider's tip is still only known once THIS delivery concludes
+regardless of whose perspective it's framed from.
+
+Since there's no longer a per-column correlation signal, the old "confirmed hard leak vs.
+merely reviewed" split (based on being a statistical outlier among name-matched peers) is
+gone — every flagged column is now uniformly excluded-by-default-but-overridable (the
+existing `post_outcome_excluded` / `include_post_outcome_features` checkbox flow),
+since that distinction was itself built on the same unreliable correlation evidence.
+
+Also fixed while wiring this in: `detect_leakage()` had an asymmetric blind spot — its
+feature-side correlation coercion (`pd.to_numeric`) silently skipped any BINARY
+CATEGORICAL feature (e.g. `late_delivery`: Yes/No) against a NUMERIC target, since
+`_abs_correlation`'s existing binary-factorize fallback was never applied to
+`detect_leakage`'s own loop. A real test (`test_late_delivery_style_categorical_leak_against_numeric_target_is_caught`)
+depended on this ONLY working by accident, via the old post-outcome mechanism's
+correlation check. Fixed properly: `detect_leakage` now (a) factorizes a binary
+categorical feature the same way `_abs_correlation` already does, and (b) for such a
+feature, also checks whether it agrees with comparing the TARGET against another numeric
+feature (the same "does a > b agree with a boolean" technique `detect_pairwise_leakage`
+already uses between two features, applied here between the target and one feature) —
+catching `late_delivery = delivery_time_min > promised_time_min` when `delivery_time_min`
+is itself the (continuous) target.
+
+Verified: 7 new tests in `test_data_understanding_roles.py` (dataset-type reclassification
++ post-outcome role, run directly against all 6 real CSVs, not just synthetic fixtures),
+plus `test_complaints_last_6_months_not_flagged_as_post_outcome_in_real_telecom_data` and
+`test_customer_rating_and_returned_flagged_as_post_outcome_in_real_retail_data` as direct,
+fast unit tests (no full API round-trip needed) pinning the exact case that motivated the
+redesign. 4 existing `test_target_and_leakage.py` tests updated (their synthetic fixtures
+needed a date column to be `time_series`-shaped, and 2 tests were rewritten to test the
+new structural distinction directly — same word, different dataset shape, different
+outcome — rather than the old, now-obsolete "weak correlation" premise).
+
+### Finding 15 — full benchmark after Phase 2: 61/64 (up from 60/64)
+
+```
+customer_churn_dataset.csv:        10/10 PASS
+retail_sales_dataset.csv:           9/11 PASS  (customer_rating AND returned both now
+                                                 correctly excluded — Finding 10 resolved)
+karachi_food_delivery_dataset.csv: 12/12 PASS  (rider_rating correctly stays included)
+customer_retention_training.csv:    8/8  PASS
+coffee_shop_transactions.csv:      15/15 PASS
+telecom_subscribers_usage.csv:      7/9  PASS  (complaints_last_6_months confirmed safe)
+
+61/64 checks passed — 6 dataset(s) run, 0 skipped, 0 errored
+```
+
+Full backend test suite: **250/250 passing** (243 prior + 7 new
+`test_data_understanding_roles.py` tests; 3 pre-existing tests fixed for the redesign —
+`test_post_outcome_named_feature_excluded_by_default_and_overridable` needed a date
+column, `test_auto_analyze_end_to_end_on_the_real_karachi_dataset` needed the
+rider_rating/customer_rating distinction, `test_late_delivery_style_categorical_leak_against_numeric_target_is_caught`
+needed the `detect_leakage` binary-feature fix above).
+
+The 3 remaining failures are the same pre-existing, already-diagnosed gaps from the Phase
+1 baseline (Nov-Dec report gap, telecom k=5 — Finding 12, next up in Phase 3 — and the
+per-row cluster API gap) — `customer_rating` is no longer among them.
+
 ## Next step
 
-Phase 1 harness is done and working across all 6 datasets (60/64); Findings 6-12 (the
-concrete bugs/gaps it surfaced) are fixed, documented, or explicitly deferred per user
-decision. These are all genuine, narrow instances of Phase 2/3/5's stated scope, done
-surgically in `ml_service.py`/`dataset_service.py`/`prediction_service.py` rather than as
-a full `data_understanding_service`/cleaning merge. The BROADER Phase 2 scope remains open
-and is NOT yet done:
+Phase 1 (harness, all 6 datasets) and this round's Phase 2 scope (role-based post-outcome
+detection + the `detect_dataset_type` fix it depends on) are both done — full benchmark
+61/64, full test suite 250/250. Findings 6-15 are fixed, documented, or explicitly
+deferred per user decision; none is a silent/unknown gap.
+
+**Now starting Phase 3** (plausibility-range cleaning), directly motivated by Finding 12
+(telecom's 4 physically-impossible call-minute values distorting clustering into k=5
+instead of k=4) — this depends on Phase 2's column roles (now in place) to know which
+columns a plausibility bound even applies to.
+
+The BROADER Phase 2 scope remains open and deliberately deferred (not required for this
+round's stated goal):
   - New roles: count (distinct from quantity), rate/percentage, free text, target
     candidate — only identifier/customer_id/timestamp/money/quantity/category/other
     exist today.
@@ -435,10 +543,6 @@ and is NOT yet done:
   - Reconciling `detect_dataset_type()`'s internal labels
     (transaction_log/customer_level/time_series/general) with the spec's exact wording
     ("customer-level table with outcome" / "transaction log" / "time series" / "table
-    with no outcome").
+    with no outcome") — the Finding 13 fix corrected the CLASSIFICATION logic but the
+    label strings themselves are still the old internal names.
   - `suggest_target_column()`'s formula-column blind spot noted above.
-
-All 6 datasets are now available, so this is no longer blocked — the broader Phase 2
-merge (or moving on to Phase 3's plausibility-range cleaning, motivated directly by
-Finding 12) is testable against the full set immediately. Both are legitimate next steps;
-neither is blocked on the other.

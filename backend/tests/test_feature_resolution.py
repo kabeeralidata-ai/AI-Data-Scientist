@@ -37,14 +37,20 @@ def test_excludes_single_column_leakage_by_default():
 
 
 def test_post_outcome_named_feature_excluded_by_default_and_overridable():
+    """Needs a date column so this dataset is classified 'time_series' (one row per
+    event) — post-outcome exclusion only applies there, not to a customer-level table,
+    per data_understanding_service.detect_post_outcome_columns."""
     random.seed(3)
     n = 200
     rows = []
-    for _ in range(n):
+    for i in range(n):
         order_value = random.uniform(100, 1000)
         late = random.random() < 0.4
         tip_pkr = round(random.uniform(10, 40) if late else random.uniform(30, 70), 2)
-        rows.append({"order_value": order_value, "tip_pkr": tip_pkr, "late": "Yes" if late else "No"})
+        order_date = f"2024-{(i % 12) + 1:02d}-{(i % 27) + 1:02d}"
+        rows.append(
+            {"order_date": order_date, "order_value": order_value, "tip_pkr": tip_pkr, "late": "Yes" if late else "No"}
+        )
     df = pd.DataFrame(rows)
 
     _, default_resolution = resolve_training_features(df, "late", None)

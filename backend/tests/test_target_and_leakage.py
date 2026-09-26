@@ -353,28 +353,32 @@ def test_realistic_noisy_profit_is_detected_and_excluded_from_retail_regression(
 
 
 def _post_outcome_csv(n=200):
-    """tip_pkr and customer_rating each have a real, but roughly similar-strength,
-    relationship with the target — enough to clear the "is this just noise" bar and be
-    worth a review prompt, but with no single one of them a clear statistical outlier
-    over the other, so neither should be auto-excluded."""
+    """A transaction-level dataset (one row per delivery, with an order date) — tip_pkr
+    and customer_rating both match the post-outcome name vocabulary. Under the role-based
+    design (data_understanding_service.detect_post_outcome_columns), both are excluded
+    because this dataset is structured one-row-per-event (verified via a rows-per-
+    identifier check on dataset TYPE, not correlation with the target) — the old
+    correlation-vs-noise-floor bar was proven unreliable (a genuine leak and pure noise
+    can both show under 1% correlation) and is no longer part of this decision at all."""
     random.seed(4)
-    rows = ["order_value,distance_km,tip_pkr,customer_rating,late_delivery"]
-    for _ in range(n):
+    rows = ["order_date,order_value,distance_km,tip_pkr,customer_rating,late_delivery"]
+    for i in range(n):
         value = round(random.uniform(200, 2000), 2)
         distance = round(random.uniform(1, 15), 2)
         late = random.random() < 0.4
         tip = round(random.uniform(10, 40) if late else random.uniform(30, 70), 2)
         rating = round(random.uniform(1, 5) - (0.4 if late else 0) + random.uniform(-1.2, 1.2), 2)
-        rows.append(f"{value},{distance},{tip},{rating},{'Yes' if late else 'No'}")
+        order_date = f"2024-{(i % 12) + 1:02d}-{(i % 27) + 1:02d}"
+        rows.append(f"{order_date},{value},{distance},{tip},{rating},{'Yes' if late else 'No'}")
     return "\n".join(rows)
 
 
 def test_post_outcome_named_features_are_excluded_by_default(auth_client):
-    """A column named like a post-outcome field (tip, rating) that also shows a real
-    relationship with the target is excluded from training BY DEFAULT — it could
-    legitimately be known in advance (e.g. a rider's historical average rating), so it's
-    not treated as confirmed leakage, but the safe default is to leave it out unless the
-    user explicitly opts it back in."""
+    """A column named like a post-outcome field (tip, rating) in a transaction-level
+    dataset is excluded from training BY DEFAULT — it could legitimately be known in
+    advance in a DIFFERENT (customer-level) dataset shape, so it's not treated as
+    confirmed/non-overridable leakage, but the safe default here is to leave it out unless
+    the user explicitly opts it back in."""
     project_id = create_project(auth_client)
     upload_resp = upload_csv(auth_client, project_id, _post_outcome_csv())
     dataset_id = upload_resp.json()["id"]
@@ -424,22 +428,27 @@ def test_post_outcome_excluded_feature_can_be_re_included_and_retrained(auth_cli
     assert included == {"tip_pkr"}
 
 
-def test_post_outcome_name_match_with_no_real_relationship_is_not_flagged(auth_client):
-    """Regression test: a column named like a post-outcome field (e.g. 'rider_rating')
-    must NOT be flagged just because it matches the name heuristic, if it shows no real
-    (above-noise-floor) relationship with THIS target in THIS dataset — a historical,
-    known-in-advance rating is a legitimate feature, not a leak, and flagging it purely by
-    name would be a false positive."""
+def test_post_outcome_name_match_not_flagged_in_a_customer_level_dataset(auth_client):
+    """Regression test for the role-based redesign: the SAME word ('rating') that means
+    "this row's own reaction" in a transaction-level dataset means "an accumulated
+    historical attribute" in a customer-level dataset (one row per customer) —
+    avg_rating_given must NOT be flagged, even with a real, deliberate correlation to the
+    target here, because a customer-level dataset has no per-event structure for
+    "post-outcome" to even mean anything. (The old mechanism tested the opposite claim —
+    "not flagged because correlation is weak" — which the redesign specifically moved away
+    from, since that evidence was proven unable to reliably separate a real leak from
+    noise; this test proves the NEW protection holds even when correlation is strong.)"""
     random.seed(17)
     n = 200
-    rows = ["order_value,distance_km,rider_rating,late_delivery"]
-    for _ in range(n):
-        value = round(random.uniform(200, 2000), 2)
-        distance = round(random.uniform(1, 15), 2)
-        late = "Yes" if random.random() < 0.4 else "No"
-        # rider_rating is a fixed historical value, independent of THIS delivery's lateness.
-        rating = round(random.uniform(1, 5), 2)
-        rows.append(f"{value},{distance},{rating},{late}")
+    rows = ["customer_id,signup_date,total_spent,avg_rating_given,will_churn"]
+    for i in range(n):
+        spent = round(random.uniform(200, 2000), 2)
+        churn = "Yes" if random.random() < 0.4 else "No"
+        # Deliberately correlated with the target — proves structure, not correlation
+        # strength, is what protects this column now.
+        rating = round(random.uniform(1, 5) - (0.4 if churn == "Yes" else 0) + random.uniform(-1.2, 1.2), 2)
+        signup_date = f"2024-{(i % 12) + 1:02d}-{(i % 27) + 1:02d}"
+        rows.append(f"CUST-{i},{signup_date},{spent},{rating},{churn}")
     content = "\n".join(rows)
 
     project_id = create_project(auth_client)
@@ -448,59 +457,63 @@ def test_post_outcome_name_match_with_no_real_relationship_is_not_flagged(auth_c
 
     train_resp = auth_client.post(
         "/api/models/train",
-        json={"dataset_id": dataset_id, "target_column": "late_delivery", "models": ["logistic_regression"]},
+        json={"dataset_id": dataset_id, "target_column": "will_churn", "models": ["logistic_regression"]},
     )
     assert train_resp.status_code == 201
     model = train_resp.json()[0]
 
-    assert "rider_rating" in model["feature_columns_json"]
+    assert "avg_rating_given" in model["feature_columns_json"]
     flagged = {w["column"] for w in model["metrics_json"]["post_outcome_excluded"]}
-    assert "rider_rating" not in flagged
-    leaked = {w["column"] for w in model["metrics_json"]["leakage_warnings"]}
-    assert "rider_rating" not in leaked
+    assert "avg_rating_given" not in flagged
 
 
-def test_dominant_post_outcome_feature_is_auto_excluded_not_just_flagged(auth_client):
-    """The single-feature leakage test: among several post-outcome-named candidates, one
-    that predicts the target far better than its similarly-named peers (a real, if
-    partial, leak on its own) is excluded automatically rather than only flagged for
-    review."""
+def test_post_outcome_hint_only_applies_to_one_row_per_event_datasets(auth_client):
+    """Direct contrast test: the exact same column name ('customer_rating') is excluded
+    in a transaction-level dataset (repeated customer_id, one row per delivery) but kept
+    in an otherwise-identical customer-level dataset (unique customer_id, one row per
+    customer) — dataset STRUCTURE, not the name alone, decides whether "post-outcome" is
+    even a meaningful concept here."""
     random.seed(11)
-    n = 300
-    rows = ["order_value,distance_km,tip_pkr,customer_rating,feedback_score,late_delivery"]
-    for _ in range(n):
+    n = 200
+
+    rows_txn = ["customer_id,order_date,order_value,customer_rating,late_delivery"]
+    for i in range(n):
+        cust = f"CUST-{i % 40}"  # 40 customers, ~5 orders each -> rows-per-customer >= 1.5
         value = round(random.uniform(200, 2000), 2)
-        distance = round(random.uniform(1, 15), 2)
         late = random.random() < 0.4
-        # tip_pkr: a clear statistical outlier among the post-outcome-named columns.
-        tip = round(random.uniform(10, 45) if late else random.uniform(35, 90), 2)
-        rating = round(random.uniform(1, 5) - (0.3 if late else 0) + random.uniform(-1.5, 1.5), 2)
-        feedback = round(random.uniform(1, 10) - (0.6 if late else 0) + random.uniform(-2.5, 2.5), 2)
-        rows.append(f"{value},{distance},{tip},{rating},{feedback},{'Yes' if late else 'No'}")
-    content = "\n".join(rows)
+        rating = round(random.uniform(1, 5) - (0.4 if late else 0) + random.uniform(-1.2, 1.2), 2)
+        order_date = f"2024-{(i % 12) + 1:02d}-{(i % 27) + 1:02d}"
+        rows_txn.append(f"{cust},{order_date},{value},{rating},{'Yes' if late else 'No'}")
 
     project_id = create_project(auth_client)
-    upload_resp = upload_csv(auth_client, project_id, content)
+    upload_resp = upload_csv(auth_client, project_id, "\n".join(rows_txn))
     dataset_id = upload_resp.json()["id"]
-
     train_resp = auth_client.post(
         "/api/models/train",
         json={"dataset_id": dataset_id, "target_column": "late_delivery", "models": ["logistic_regression"]},
     )
     assert train_resp.status_code == 201
     model = train_resp.json()[0]
-
-    # tip_pkr is a confirmed single-feature leak (unconditionally excluded); the other two
-    # are only softly suspected by name+correlation, so they're excluded BY DEFAULT too,
-    # but distinctly — as an overridable default, not a confirmed leak.
-    assert "tip_pkr" not in model["feature_columns_json"]
     assert "customer_rating" not in model["feature_columns_json"]
-    assert "feedback_score" not in model["feature_columns_json"]
 
-    leaked = {w["column"] for w in model["metrics_json"]["leakage_warnings"]}
-    assert "tip_pkr" in leaked
-    excluded_by_default = {w["column"] for w in model["metrics_json"]["post_outcome_excluded"]}
-    assert excluded_by_default == {"customer_rating", "feedback_score"}
+    rows_cust = ["customer_id,signup_date,total_spent,customer_rating,will_churn"]
+    for i in range(n):
+        spent = round(random.uniform(200, 2000), 2)
+        churn = "Yes" if random.random() < 0.4 else "No"
+        rating = round(random.uniform(1, 5) - (0.4 if churn == "Yes" else 0) + random.uniform(-1.2, 1.2), 2)
+        signup_date = f"2024-{(i % 12) + 1:02d}-{(i % 27) + 1:02d}"
+        rows_cust.append(f"CUST-{i},{signup_date},{spent},{rating},{churn}")
+
+    project_id2 = create_project(auth_client)
+    upload_resp2 = upload_csv(auth_client, project_id2, "\n".join(rows_cust))
+    dataset_id2 = upload_resp2.json()["id"]
+    train_resp2 = auth_client.post(
+        "/api/models/train",
+        json={"dataset_id": dataset_id2, "target_column": "will_churn", "models": ["logistic_regression"]},
+    )
+    assert train_resp2.status_code == 201
+    model2 = train_resp2.json()[0]
+    assert "customer_rating" in model2["feature_columns_json"]
 
 
 def test_score_target_candidates_never_suggests_a_detected_formula_column():

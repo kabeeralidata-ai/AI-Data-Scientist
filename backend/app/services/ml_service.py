@@ -29,7 +29,9 @@ from xgboost import XGBClassifier, XGBRegressor
 from app.core.config import settings
 from app.models.dataset import Dataset
 from app.models.ml_model import MLModel
+from app.services.data_understanding_service import classify_columns, detect_dataset_type, detect_post_outcome_columns
 from app.services.dataset_service import (
+    build_dataset_profile,
     detect_semantic_type,
     is_id_like_column,
     load_dataframe,
@@ -338,8 +340,19 @@ def detect_leakage(df: pd.DataFrame, target_column: str, feature_columns: list[s
         if col not in df.columns:
             continue
         feature_series = pd.to_numeric(df[col], errors="coerce")
+        feature_bool = None
         if feature_series.notna().sum() < 2:
-            continue
+            # A binary categorical feature (e.g. 'late_delivery': Yes/No) coerces to
+            # all-NaN and would otherwise be invisible to every check below, even when
+            # it's structurally derived from a NUMERIC target — same factorize-as-0/1
+            # fallback _abs_correlation already uses for this exact shape.
+            non_null = df[col].dropna()
+            if non_null.nunique() == 2:
+                codes, _ = pd.factorize(df[col].astype(str))
+                feature_bool = pd.Series(codes.astype(bool), index=df.index).where(df[col].notna())
+                feature_series = feature_bool.astype(float)
+            else:
+                continue
         aligned = pd.concat([feature_series, target_series], axis=1).dropna()
         corr = None
         if len(aligned) >= 5:
@@ -376,6 +389,40 @@ def detect_leakage(df: pd.DataFrame, target_column: str, feature_columns: list[s
                             f"{agreement:.1%} of the time — a near-perfect, deterministic relationship "
                             "(e.g. a future-window count that's exactly zero whenever the outcome is "
                             "negative), even where its plain linear correlation looked unremarkable."
+                        ),
+                    }
+                )
+                continue
+
+        if feature_bool is not None:
+            # A binary/categorical feature might be DEFINED by comparing the (numeric)
+            # TARGET against ANOTHER feature (e.g. 'late_delivery' = delivery_time_min >
+            # promised_time_min, where delivery_time_min IS the target here) — the same
+            # 'does a > b agree with a boolean' technique detect_pairwise_leakage uses
+            # between two features, applied between the target and one feature instead.
+            best_agreement, best_other = 0.0, None
+            for other in feature_columns:
+                if other == col or other not in df.columns:
+                    continue
+                other_numeric = pd.to_numeric(df[other], errors="coerce")
+                mask = other_numeric.notna() & target_series.notna() & feature_bool.notna()
+                if mask.sum() < 10:
+                    continue
+                derived = target_series[mask] > other_numeric[mask]
+                agreement = (derived.values == feature_bool[mask].values).mean()
+                agreement = max(agreement, 1 - agreement)
+                if agreement > best_agreement:
+                    best_agreement, best_other = agreement, other
+            if best_agreement >= PAIRWISE_LEAKAGE_AGREEMENT_THRESHOLD:
+                warnings.append(
+                    {
+                        "column": col,
+                        "correlation": round(best_agreement, 4),
+                        "reason": (
+                            f"'{col}' agrees with comparing the target '{target_column}' against "
+                            f"'{best_other}' {best_agreement:.1%} of the time (e.g. {col} is defined as "
+                            f"{target_column} > {best_other}) — a direct structural derivation of the "
+                            "target, not a genuine predictive input."
                         ),
                     }
                 )
@@ -485,13 +532,6 @@ def detect_pairwise_leakage(df: pd.DataFrame, target_column: str, feature_column
     return warnings
 
 
-POST_OUTCOME_NAME_HINTS = (
-    "tip", "rating", "review", "feedback", "refund", "complaint",
-    "resolution", "resolved", "closed", "cancelled", "satisfaction",
-    "late", "delayed", "overdue", "return",
-)
-
-
 def _abs_correlation(df: pd.DataFrame, col: str, target_series: pd.Series) -> float | None:
     """Correlation between a feature and the target, extended to handle a BINARY
     categorical feature (e.g. 'late_delivery': Yes/No) against a numeric target: coercing
@@ -522,8 +562,8 @@ def _abs_correlation(df: pd.DataFrame, col: str, target_series: pd.Series) -> fl
 
 # Words that name a value COMPUTED FROM other monetary fields in the same row/event
 # (profit = revenue - cost, margin = profit / revenue, ...) rather than an input known
-# before the outcome. Unlike POST_OUTCOME_NAME_HINTS (a timing concept — "known only
-# after the outcome"), this is a DERIVATION concept — these columns are typically
+# before the outcome. Unlike data_understanding_service's POST_OUTCOME_HINTS (a timing
+# concept — "known only after the outcome"), this is a DERIVATION concept — these columns are typically
 # calculated alongside the target from the same underlying transaction, so even a
 # moderate (not near-perfect) correlation is meaningful evidence of leakage. A pure
 # correlation threshold can't reliably separate this from a legitimate strong predictor
@@ -612,84 +652,34 @@ def detect_high_correlation_features(
     return sorted(warnings, key=lambda w: w["correlation"], reverse=True)
 
 
-def detect_post_outcome_features(
-    df: pd.DataFrame, target_column: str, feature_columns: list[str]
-) -> tuple[list[dict], list[dict]]:
-    """Combines a name-based hint (tip, rating, review, ...) with an actual statistical
-    check against the target, so a column that merely CONTAINS a suspicious word (e.g.
-    'rider_rating', a historical, known-in-advance rating) isn't flagged just for its
-    name — it also has to show a real, non-trivial relationship with THIS target in THIS
-    dataset, gauged against how correlated a typical, unsuspicious feature happens to be
-    here (the "noise floor"), not a fixed cutoff.
+def detect_post_outcome_features(df: pd.DataFrame, feature_columns: list[str]) -> list[dict]:
+    """Role-based post-outcome detection — see
+    data_understanding_service.detect_post_outcome_columns for the full rationale. This
+    used to be a name-hint-plus-correlation-vs-an-arbitrary-target heuristic; that
+    correlation "evidence" was proven unreliable (verified directly: a genuine leak and
+    pure statistical noise can both show under 1% correlation, so no threshold value can
+    tell them apart). It's replaced by a target-INDEPENDENT structural signal instead:
+    whether this dataset is shaped one-row-per-event (transaction_log/time_series, where a
+    post-outcome-hint column describes THIS row's own aftermath) vs. one-row-per-entity
+    (customer_level/general, where the same words describe accumulated past history, e.g.
+    'complaints_last_6_months', and must NOT be flagged).
 
-    Among the columns that clear that bar, if one is a statistical outlier compared to its
-    similarly-named peers — more correlated than their own mean by more than their own
-    spread, the same "compare against natural variance" principle used for the baseline
-    check — it behaves like an actual single-feature leak, not just a naming coincidence,
-    and is excluded automatically. The rest are only flagged for the user to review; unlike
-    detect_leakage / detect_pairwise_leakage, a naming/correlation suspicion alone isn't
-    proof, and silently dropping a genuinely valid, known-in-advance feature would be its
-    own mistake.
-
-    Returns (auto_excluded, review_only).
+    Unlike the old function, this has no per-column correlation signal to distinguish "a
+    dominant single-feature leak" from "merely plausible" — since that distinction was
+    itself built on the same unreliable correlation evidence, every flagged column is now
+    treated uniformly as excluded-by-default-but-overridable (the caller's existing
+    "review" tier), never as confirmed/non-overridable leakage.
     """
-    name_candidates = [c for c in feature_columns if tokens_match_any(tokenize_column_name(c), POST_OUTCOME_NAME_HINTS)]
-    if not name_candidates:
-        return [], []
-
-    target_series = pd.to_numeric(df[target_column], errors="coerce")
-    if target_series.notna().sum() < 2:
-        target_series = df[target_column].astype("category").cat.codes.astype(float)
-        target_series = target_series.replace(-1, np.nan)
-
-    other_features = [c for c in feature_columns if c not in name_candidates]
-    other_corrs = [c for c in (_abs_correlation(df, col, target_series) for col in other_features) if c is not None]
-    noise_floor = float(np.median(other_corrs)) if other_corrs else 0.0
-
-    scored = []
-    for col in name_candidates:
-        corr = _abs_correlation(df, col, target_series)
-        if corr is not None and corr >= noise_floor:
-            scored.append((col, corr))
-        # else: name-matched but statistically indistinguishable from an unrelated feature
-        # in THIS dataset — not flagged at all, avoiding a name-only false positive.
-
-    if not scored:
-        return [], []
-
-    values = [c for _, c in scored]
-    mean_corr = float(np.mean(values))
-    std_corr = float(np.std(values)) if len(values) > 1 else 0.0
-
-    excluded: list[dict] = []
-    review: list[dict] = []
-    for col, corr in scored:
-        if std_corr > 0 and corr > mean_corr + std_corr:
-            excluded.append(
-                {
-                    "column": col,
-                    "correlation": round(corr, 4),
-                    "reason": (
-                        f"Named like post-outcome information AND predicts the target far better "
-                        f"({corr:.0%} correlated) than similarly-named features (avg {mean_corr:.0%} here) "
-                        "— statistically behaves like a leak on its own, so it's excluded automatically "
-                        "rather than only flagged for review."
-                    ),
-                }
-            )
-        else:
-            review.append(
-                {
-                    "column": col,
-                    "reason": (
-                        f"'{col}' often represents information only available AFTER the outcome occurs "
-                        f"(e.g. a rating or tip given once an order is complete), and shows a real "
-                        f"({corr:.0%} correlated) relationship with the target here. Review whether this "
-                        "would actually be known at prediction time — if not, exclude it below."
-                    ),
-                }
-            )
-    return excluded, review
+    if not feature_columns:
+        return []
+    # Classified against the FULL dataframe (not just feature_columns), since dataset-type
+    # detection needs to see the customer_id/timestamp columns that select_training_features
+    # already excluded from the feature LIST — those columns are still present in df itself.
+    profile = build_dataset_profile(df)
+    column_roles = classify_columns(df, profile, use_gemini=False)
+    dataset_type = detect_dataset_type(df, column_roles)
+    flagged = detect_post_outcome_columns(column_roles, dataset_type["type"])
+    return [w for w in flagged if w["column"] in feature_columns]
 
 
 class FeatureResolution:
@@ -766,11 +756,7 @@ def resolve_training_features(
             "manually."
         )
 
-    post_outcome_confirmed, post_outcome_review = detect_post_outcome_features(df, target_column, candidate_features)
-    if post_outcome_confirmed:
-        leakage_warnings += post_outcome_confirmed
-        confirmed_names = {w["column"] for w in post_outcome_confirmed}
-        candidate_features = [c for c in candidate_features if c not in confirmed_names]
+    post_outcome_review = detect_post_outcome_features(df, candidate_features)
 
     post_outcome_excluded = []
     post_outcome_included = []

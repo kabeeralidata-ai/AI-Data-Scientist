@@ -47,6 +47,26 @@ MONEY_HINTS = (
 QUANTITY_HINTS = ("quantity", "qty", "count", "units", "items", "orders")
 CATEGORY_HINTS = ("category", "type", "branch", "channel", "segment", "region", "method", "status", "gender")
 
+# Vocabulary for a column that names a REACTION TO or CONSEQUENCE OF a single row's own
+# event (a tip/rating/review given for THIS order, THIS delivery running late, THIS
+# transaction being refunded/returned) — see detect_post_outcome_columns for why this is
+# combined with a structural (per-event vs. per-entity) check rather than used alone.
+POST_OUTCOME_HINTS = (
+    "tip", "rating", "review", "feedback", "refund", "complaint",
+    "resolution", "resolved", "closed", "cancelled", "satisfaction",
+    "late", "delayed", "overdue", "return",
+)
+
+# A REPUTATION-flavored post-outcome word (rating/review/feedback/satisfaction/resolved),
+# when paired with a word naming the SERVICE PROVIDER rather than the customer (e.g.
+# 'rider_rating', 'driver_review'), names that provider's own pre-existing track record —
+# built from many PAST deliveries, known before THIS one — not a reaction to this specific
+# row's event. Deliberately narrow: it does NOT cover 'tip'/'refund'/'late'/'cancelled'/
+# 'complaint', which stay post-outcome regardless of whose perspective they're framed from
+# (e.g. a rider's tip is still only known once THIS delivery concludes).
+POST_OUTCOME_REPUTATION_HINTS = ("rating", "review", "feedback", "satisfaction", "resolution", "resolved")
+SERVICE_PROVIDER_HINTS = ("rider", "driver", "courier", "agent", "seller", "vendor", "staff", "provider", "employee")
+
 # Roles where a negative value is a legitimate real-world signal (a refund/return reduces
 # quantity and revenue) rather than a data-entry error — used by cleaning_service to decide
 # whether rare negatives should be preserved or treated as likely mistakes.
@@ -267,17 +287,26 @@ def classify_columns(df: pd.DataFrame, profile: dict, use_gemini: bool = True) -
 def detect_dataset_type(df: pd.DataFrame, column_roles: dict[str, dict]) -> dict:
     """Returns {"type": ..., "reason": ...}. Verifies "transaction log" with an actual
     rows-per-identifier check (not just column presence), so a customer-level table that
-    happens to also have a money column and a signup date isn't misclassified."""
+    happens to also have a money column and a signup date isn't misclassified.
+
+    A customer identifier's rows-per-customer ratio is checked FIRST, before any
+    timestamp-based branch: a customer-level table with (nearly) one row per customer is
+    still customer-level even when one of its columns happens to be a timestamp (e.g. a
+    signup_date attribute) — that's a per-customer ATTRIBUTE, not evidence this is really
+    a per-event/per-period log. Checking rows-per-customer before the timestamp branches
+    is what correctly separates "one row per customer, one of its columns is a date" from
+    "one row per event/period" (transaction_log/time_series)."""
     customer_id_cols = [n for n, r in column_roles.items() if r["role"] == ROLE_CUSTOMER_ID]
     identifier_cols = [n for n, r in column_roles.items() if r["role"] == ROLE_IDENTIFIER]
     has_money = any(r["role"] == ROLE_MONEY for r in column_roles.values())
     has_timestamp = any(r["role"] == ROLE_TIMESTAMP for r in column_roles.values())
 
-    if customer_id_cols and has_money and has_timestamp:
+    if customer_id_cols:
         id_col = customer_id_cols[0]
         non_null_ids = df[id_col].dropna()
         rows_per_customer = (len(non_null_ids) / non_null_ids.nunique()) if non_null_ids.nunique() else 0
-        if rows_per_customer >= 1.5:
+
+        if rows_per_customer >= 1.5 and has_money and has_timestamp:
             return {
                 "type": "transaction_log",
                 "reason": (
@@ -287,20 +316,26 @@ def detect_dataset_type(df: pd.DataFrame, column_roles: dict[str, dict]) -> dict
                 "customer_id_column": id_col,
             }
 
+        if rows_per_customer < 1.5:
+            return {
+                "type": "customer_level",
+                "reason": (
+                    f"has a customer identifier ('{id_col}') with (nearly) one row per customer"
+                    + (
+                        " (one of its columns is a timestamp, but that's a per-customer attribute, "
+                        "not evidence of a per-event log)"
+                        if has_timestamp
+                        else ""
+                    )
+                ),
+                "customer_id_column": id_col,
+            }
+
     if has_timestamp and has_money and not customer_id_cols:
         return {
             "type": "time_series",
             "reason": "has a timestamp and a monetary/measured column but no per-record customer identifier",
         }
-
-    if customer_id_cols and not has_timestamp:
-        id_col = customer_id_cols[0]
-        non_null_ids = df[id_col].dropna()
-        if non_null_ids.nunique() and (len(non_null_ids) / non_null_ids.nunique()) < 1.5:
-            return {
-                "type": "customer_level",
-                "reason": f"has a customer identifier ('{id_col}') with (nearly) one row per customer and no timestamp",
-            }
 
     if identifier_cols and not customer_id_cols and has_timestamp:
         return {
@@ -313,6 +348,55 @@ def detect_dataset_type(df: pd.DataFrame, column_roles: dict[str, dict]) -> dict
         "reason": "no combination of customer identifier, timestamp, and monetary column strongly suggests a "
         "transaction log, time series, or customer-level table",
     }
+
+
+def detect_post_outcome_columns(column_roles: dict[str, dict], dataset_type: str) -> list[dict]:
+    """Flags a column as POST-OUTCOME — information that only exists as a reaction to a
+    row's own event (a tip/rating/review for THIS order, THIS delivery running late, THIS
+    transaction being refunded) — combining a name hint with a genuine STRUCTURAL evidence
+    check, not name alone.
+
+    The evidence: this only fires for 'transaction_log' and 'time_series' datasets, where
+    detect_dataset_type has already verified (via an actual rows-per-identifier check,
+    not a guess) that each row represents a single event/occurrence. In that structure, a
+    post-outcome-hint-matching column genuinely describes THIS row's own aftermath.
+
+    In a 'customer_level' (or 'general') dataset — one row per customer/entity — the exact
+    same words describe an ACCUMULATED HISTORICAL ATTRIBUTE instead (e.g.
+    'complaints_last_6_months', 'product_returns', 'avg_rating_given' are past behavior
+    the customer brought INTO the prediction window, not a reaction generated by it), so
+    the same name hint must NOT fire there. This was verified against real data: pure
+    correlation-vs-an-arbitrary-target evidence cannot reliably tell a genuine post-outcome
+    leak apart from statistical noise (both can show a correlation under 1%) — but the
+    per-event vs. per-entity structural distinction is a real, target-independent signal
+    that generalizes correctly across all of this project's real benchmark datasets.
+    """
+    if dataset_type not in ("transaction_log", "time_series"):
+        return []
+
+    flagged = []
+    for name, role_info in column_roles.items():
+        if role_info["role"] in (ROLE_IDENTIFIER, ROLE_CUSTOMER_ID, ROLE_TIMESTAMP):
+            continue
+        tokens = tokenize_column_name(name)
+        if not tokens_match_any(tokens, POST_OUTCOME_HINTS):
+            continue
+        if tokens_match_any(tokens, POST_OUTCOME_REPUTATION_HINTS) and tokens_match_any(tokens, SERVICE_PROVIDER_HINTS):
+            # e.g. 'rider_rating' — the provider's own pre-existing track record, not a
+            # reaction generated by this specific row.
+            continue
+        flagged.append(
+            {
+                "column": name,
+                "reason": (
+                    f"'{name}' names a reaction to this row's own event (e.g. a rating/tip/refund/"
+                    "delay), and this dataset is structured one-row-per-event (verified via a "
+                    "rows-per-identifier check, not a name guess) — it describes this row's "
+                    "aftermath, not an input known before the event concluded."
+                ),
+            }
+        )
+    return flagged
 
 
 def _series_matches(y: pd.Series, computed: pd.Series, min_match_rate: float = 0.97) -> bool:
@@ -410,4 +494,10 @@ def understand_dataset(dataset: Dataset, use_gemini: bool = False) -> dict:
     column_roles = classify_columns(df, profile, use_gemini=use_gemini)
     dataset_type = detect_dataset_type(df, column_roles)
     formula_columns = detect_formula_columns(df, column_roles)
-    return {"column_roles": column_roles, "dataset_type": dataset_type, "formula_columns": formula_columns}
+    post_outcome_columns = detect_post_outcome_columns(column_roles, dataset_type["type"])
+    return {
+        "column_roles": column_roles,
+        "dataset_type": dataset_type,
+        "formula_columns": formula_columns,
+        "post_outcome_columns": post_outcome_columns,
+    }
