@@ -203,6 +203,42 @@ def _feature_importance(pipeline: Pipeline, numeric_features: list[str], categor
 WEAK_MODEL_ROC_AUC_BAND = 0.05
 
 
+def compute_baseline_comparison(
+    problem_type: str, y_train: pd.Series, y_test: pd.Series, model_score: float, cv_scores: list[float]
+) -> dict:
+    """A trivial majority-class (classification) / mean (regression) baseline a trained
+    model is compared against — not so a model "passes" some arbitrary bar, but so a weak
+    result is honestly labeled as barely-better-than-guessing rather than presented as a
+    real predictive model. "Clearly beats" is judged against the model's OWN cross-
+    validation spread rather than a fixed number — if the improvement over baseline is
+    smaller than the model's natural fold-to-fold variance, it isn't distinguishable from
+    noise. Extracted out of train_models() so return_prediction_service (Phase 5 —
+    modeling safety unification) can apply the exact same standard rather than having no
+    baseline comparison at all."""
+    comparison_key = "f1" if problem_type == "classification" else "r2"
+    if problem_type == "classification":
+        baseline_value = y_train.mode().iloc[0] if len(y_train.mode()) else y_train.iloc[0]
+        baseline_pred = np.full(len(y_test), baseline_value)
+        baseline_metrics = classification_metrics(y_test, baseline_pred, None)
+    else:
+        baseline_value = float(y_train.mean())
+        baseline_pred = np.full(len(y_test), baseline_value)
+        baseline_metrics = regression_metrics(y_test, baseline_pred)
+    baseline_score = float(baseline_metrics.get(comparison_key, 0) or 0)
+
+    cv_std = float(np.std(cv_scores)) if len(cv_scores) > 1 else 0.0
+    improvement = model_score - baseline_score
+    clearly_beats_baseline = improvement > cv_std if cv_std > 0 else improvement > 0
+    return {
+        "baseline_score": round(baseline_score, 4),
+        "baseline_metric": comparison_key,
+        "model_score": round(model_score, 4),
+        "improvement": round(improvement, 4),
+        "cv_std": round(cv_std, 4),
+        "clearly_beats_baseline": bool(clearly_beats_baseline),
+    }
+
+
 def evaluate_model_strength(metrics: dict, baseline_comparison: dict) -> tuple[bool, str | None]:
     """Returns (is_weak, reason). A model is weak if it doesn't clearly beat a trivial
     baseline, OR its ROC-AUC is close to 0.5 (classification only) — the latter catches a
@@ -908,19 +944,6 @@ def train_models(
 
     comparison_key = "f1" if problem_type == "classification" else "r2"
 
-    # A baseline (majority-class / mean predictor) trained models are compared against —
-    # not so a model "passes" some arbitrary bar, but so a weak result is honestly labeled
-    # as barely-better-than-guessing rather than presented as a real predictive model.
-    if problem_type == "classification":
-        baseline_value = y_train.mode().iloc[0] if len(y_train.mode()) else y_train.iloc[0]
-        baseline_pred = np.full(len(y_test), baseline_value)
-        baseline_metrics = classification_metrics(y_test, baseline_pred, None)
-    else:
-        baseline_value = float(y_train.mean())
-        baseline_pred = np.full(len(y_test), baseline_value)
-        baseline_metrics = regression_metrics(y_test, baseline_pred)
-    baseline_score = float(baseline_metrics.get(comparison_key, 0) or 0)
-
     results = []
     saved_models: list[MLModel] = []
     existing_count = (
@@ -976,20 +999,7 @@ def train_models(
         importance = _feature_importance(pipeline, numeric_features, categorical_features)
 
         model_score = float(metrics.get(comparison_key, 0) or 0)
-        cv_std = float(np.std(cv_scores)) if len(cv_scores) > 1 else 0.0
-        improvement = model_score - baseline_score
-        # "Clearly beats" is judged against the model's OWN cross-validation spread rather
-        # than a fixed number — if the improvement over baseline is smaller than the
-        # model's natural fold-to-fold variance, it isn't distinguishable from noise.
-        clearly_beats_baseline = improvement > cv_std if cv_std > 0 else improvement > 0
-        baseline_comparison = {
-            "baseline_score": round(baseline_score, 4),
-            "baseline_metric": comparison_key,
-            "model_score": round(model_score, 4),
-            "improvement": round(improvement, 4),
-            "cv_std": round(cv_std, 4),
-            "clearly_beats_baseline": bool(clearly_beats_baseline),
-        }
+        baseline_comparison = compute_baseline_comparison(problem_type, y_train, y_test, model_score, cv_scores)
         is_weak, weak_reason = evaluate_model_strength(metrics, baseline_comparison)
 
         model_dir = os.path.join(settings.MODEL_DIR, str(project_id))

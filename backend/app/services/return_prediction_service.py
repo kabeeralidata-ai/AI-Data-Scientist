@@ -18,10 +18,11 @@ import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import cross_val_score, train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
+from app.services import ml_service
 from app.services.customer_analytics_service import pick_column, build_customer_table
 from app.utils.metrics import classification_metrics
 
@@ -70,21 +71,21 @@ def _customer_features_and_label(
     return features_df
 
 
-def _build_pipeline(random_seed: int = 42) -> Pipeline:
-    preprocessor = ColumnTransformer(
-        transformers=[
-            (
-                "num",
-                Pipeline([("imputer", SimpleImputer(strategy="median")), ("scaler", StandardScaler())]),
-                NUMERIC_FEATURES,
-            ),
+def _build_pipeline(numeric_features: list[str], categorical_features: list[str], random_seed: int = 42) -> Pipeline:
+    transformers = []
+    if numeric_features:
+        transformers.append(
+            ("num", Pipeline([("imputer", SimpleImputer(strategy="median")), ("scaler", StandardScaler())]), numeric_features)
+        )
+    if categorical_features:
+        transformers.append(
             (
                 "cat",
                 Pipeline([("imputer", SimpleImputer(strategy="most_frequent")), ("encoder", OneHotEncoder(handle_unknown="ignore"))]),
-                CATEGORICAL_FEATURES,
-            ),
-        ]
-    )
+                categorical_features,
+            )
+        )
+    preprocessor = ColumnTransformer(transformers=transformers)
     model = RandomForestClassifier(n_estimators=200, random_state=random_seed, class_weight="balanced")
     return Pipeline(steps=[("preprocessor", preprocessor), ("model", model)])
 
@@ -116,18 +117,47 @@ def run_return_prediction(
     if len(training_set) < 30 or training_set["returned"].nunique() < 2:
         return None  # too few historical examples, or a degenerate single-class label
 
-    feature_cols = NUMERIC_FEATURES + CATEGORICAL_FEATURES
+    # Phase 5 (modeling safety unification, Finding 2): this pipeline used to build its
+    # own model with zero leakage checking, no baseline comparison, and no weak-model
+    # flag — entirely separate from ml_service.train_models()'s real safety mechanisms.
+    # Rather than rebuilding this pipeline on top of train_models() (a genuinely different
+    # data shape: a time-cutoff train/predict split over customer-level aggregates from
+    # build_customer_table(), not a raw dataset row-per-record), this reuses the SAME
+    # shared detection functions ml_service.train_models() calls, verified against real
+    # data (coffee_shop_transactions.csv) rather than assumed safe just because the
+    # feature list is small and hand-picked.
+    all_feature_cols = NUMERIC_FEATURES + CATEGORICAL_FEATURES
+    leakage_warnings = ml_service.detect_leakage(training_set, "returned", all_feature_cols)
+    leakage_warnings += ml_service.detect_pairwise_leakage(training_set, "returned", all_feature_cols)
+    leakage_warnings += ml_service.detect_derived_metric_features(training_set, "returned", all_feature_cols)
+    leaked_names = {w["column"] for w in leakage_warnings}
+    numeric_features = [c for c in NUMERIC_FEATURES if c not in leaked_names]
+    categorical_features = [c for c in CATEGORICAL_FEATURES if c not in leaked_names]
+    feature_cols = numeric_features + categorical_features
+    if not feature_cols:
+        return None  # every candidate feature was excluded as likely leakage — never train on it
+
     X = training_set[feature_cols]
     y = training_set["returned"]
 
     stratify = y if y.nunique() > 1 else None
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=random_seed, stratify=stratify)
 
-    pipeline = _build_pipeline(random_seed)
+    pipeline = _build_pipeline(numeric_features, categorical_features, random_seed)
     pipeline.fit(X_train, y_train)
     y_pred = pipeline.predict(X_test)
     y_proba = pipeline.predict_proba(X_test) if hasattr(pipeline, "predict_proba") else None
     holdout_metrics = classification_metrics(y_test, y_pred, y_proba)
+
+    cv_scores = []
+    try:
+        effective_cv = max(2, min(5, y_train.value_counts().min()))
+        cv_scores = cross_val_score(pipeline, X_train, y_train, cv=effective_cv, scoring="f1_weighted").tolist()
+    except Exception:
+        cv_scores = []
+    model_score = float(holdout_metrics.get("f1", 0) or 0)
+    baseline_comparison = ml_service.compute_baseline_comparison("classification", y_train, y_test, model_score, cv_scores)
+    is_weak, weak_reason = ml_service.evaluate_model_strength(holdout_metrics, baseline_comparison)
 
     # Forward prediction: cutoff = the dataset's own most recent date ("now"), features
     # from ALL history — this is what actually gets reported to the user.
@@ -156,8 +186,12 @@ def run_return_prediction(
     try:
         model = pipeline.named_steps["model"]
         preproc = pipeline.named_steps["preprocessor"]
-        cat_names = list(preproc.named_transformers_["cat"].named_steps["encoder"].get_feature_names_out(CATEGORICAL_FEATURES))
-        names = NUMERIC_FEATURES + cat_names
+        cat_names = (
+            list(preproc.named_transformers_["cat"].named_steps["encoder"].get_feature_names_out(categorical_features))
+            if categorical_features
+            else []
+        )
+        names = numeric_features + cat_names
         importances = model.feature_importances_
         pairs = sorted(zip(names, importances), key=lambda x: x[1], reverse=True)[:10]
         total = sum(v for _, v in pairs) or 1.0
@@ -172,6 +206,15 @@ def run_return_prediction(
         "training_customers": int(len(training_set)),
         "holdout_metrics": holdout_metrics,
         "feature_importance": feature_importances,
+        # Phase 5 — the same safety signals ml_service.train_models() reports, applied
+        # here for the first time: which candidate features (if any) were excluded as
+        # likely leakage, how the model compares to a trivial baseline, and whether it's
+        # flagged as too weak to be a real predictor.
+        "features_used": feature_cols,
+        "leakage_warnings": leakage_warnings,
+        "baseline": baseline_comparison,
+        "is_weak": is_weak,
+        "weak_reason": weak_reason,
         "total_customers": total_customers,
         # The headline count IS the "Likely to return" band count — no separate
         # threshold, so this can never disagree with risk_group_counts below.

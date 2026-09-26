@@ -18,7 +18,7 @@ file alone and continue correctly._
 | 3 — Cleaning | ✅ Done (this round's scope) | Plausibility-range cleaning added (age biological ceiling + time-unit-within-period physical ceiling — Finding 16). Telecom's 4 fraud call-minute values and 3 impossible ages (134/150/212) now genuinely corrected, not just statistically flagged. |
 | 3.5 — Segmentation methodology | ✅ Done | `run_clustering_analysis()` rebuilt to standard methodology: behavioral/usage features only (demographics/age describe segments afterward, never form them), skewed columns log-transformed, k chosen from silhouette + GMM BIC + bootstrap stability together — never silhouette alone, never the answer key. This resolved Finding 17 for real: k=4 exactly, 99.9% match rate as a post-hoc diagnostic. See Finding 18. |
 | 4 — Planner | ✅ Done | New `planning_service.build_analysis_plan()` is the single shared entry point EVERY Auto Analyze run calls — previously only transaction-log datasets got an explicit plan object at all; now every dataset type does (`job.result_json["plan"]`), delegating to `transaction_analysis_service`'s existing viability math for transaction logs rather than duplicating it. See Finding 19. Execution engines (train/cluster/transaction-analytics) and the existing pause/resume UX are unchanged — a deliberate, lower-risk scope than a full control-flow rewrite. **Follow-up (Finding 20):** every plan entry now carries a `reason` and a `confidence` level (high/medium/low/none), plus an overall `plan["confidence"]`; segmentation — previously the one path with NO confirmation step at all — now always pauses for confirmation like the other two paths; `confirm-plan` accepts an optional `target_column` to override the plan entirely. Surfaced and fixed a real pre-existing bug along the way: coffee shop's plan reported "27028 days of history" due to a planted invalid date inflating the span calculation. |
-| 5 — Modeling safety | 🟡 Partial | Batch prediction now reconstructs date-derived features from raw uploads (Finding 11) — but `return_prediction_service.py` still bypasses `ml_service`'s safety entirely (Phase 0 finding #2, unchanged). |
+| 5 — Modeling safety | ✅ Done (this round's scope) | `return_prediction_service.py` now runs the SAME leakage detection, baseline comparison, and weak-model flagging `ml_service.train_models()` uses (extracted `compute_baseline_comparison()` as a shared function) — verified against real coffee-shop data: `leakage_warnings=[]`, model F1 0.929 vs. baseline 0.538, `is_weak=False`. See Finding 21. Deliberately scoped narrower than a full rewrite: return-prediction still uses its own training orchestration (a genuinely different data shape — a time-cutoff split over customer-level aggregates, not `train_models()`'s raw-dataframe-in assumption), and does NOT yet save an `MLModel` row, so batch prediction still isn't available for it — the remaining piece of Phase 0 Finding 2, documented as still open. |
 | 6 — Adaptive report | ⬜ Not started | Report sections are hardcoded template branches (model/clusters/transaction_analysis), not truly plan-driven — see Phase 0 finding #3 |
 | 7 — AI reliability | ⬜ Not started | Gemini service is unified and cached for supervised/clustering paths; transaction-log AI narrative does NOT use the same DB cache — see Phase 0 finding #4 |
 | 8 — App consistency | ⬜ Not started | No pipeline versioning exists yet |
@@ -800,13 +800,79 @@ methodology fix (Finding 18) are all done for this round's scope — full benchm
 deferred per user decision; none is a silent/unknown gap. The only remaining benchmark
 failure is retail's Nov-Dec report gap, which is explicitly Phase 6 scope (see below).
 
-**Now starting Phase 5** (modeling safety unification) — Phase 0 Finding 2, unchanged
-through every round so far: `return_prediction_service.py` (the coffee-shop transaction-
-log path's return-prediction model) has its own bespoke training code — fixed
+## Phase 5 — modeling safety unification (2026-09-26)
+
+Phase 0 Finding 2: `return_prediction_service.py` (the coffee-shop transaction-log path's
+return-prediction model) had its own bespoke training code — fixed
 `NUMERIC_FEATURES`/`CATEGORICAL_FEATURES` lists, never leakage-checked, no baseline
 comparison, no weak-model warning — entirely separate from `ml_service.train_models()`'s
-real, tested leakage detection, baseline, and weak-model flagging. It also doesn't save a
-reusable pipeline via `prediction_service`, so there's no batch-prediction UI path for it.
+real, tested leakage detection, baseline, and weak-model flagging.
+
+### Finding 21 — return-prediction now runs the same leakage/baseline/weak-model checks train_models() does — ✅ FIXED (partial scope, documented)
+
+**Deliberately scoped narrower than routing return-prediction through `train_models()`
+entirely.** That function assumes a raw, row-per-record dataframe with its own feature
+selection; return-prediction's data shape is fundamentally different — a time-cutoff
+train/predict split over CUSTOMER-LEVEL AGGREGATES already computed by
+`customer_analytics_service.build_customer_table()` (recency/frequency/monetary/etc., one
+row per customer). Rebuilding that on top of `train_models()`'s API would mean either
+distorting `train_models()` to accept pre-aggregated input or duplicating its internals —
+a bigger, higher-risk change than what this finding actually asks for: the SAME safety
+CHECKS, not identical training orchestration.
+
+**Fixed**:
+  - Extracted `ml_service.compute_baseline_comparison()` out of the loop inside
+    `train_models()` (previously inline, recomputed per candidate model) into a standalone,
+    reusable function — `train_models()`'s own behavior is unchanged (verified: the exact
+    same computation, just callable from elsewhere).
+  - `return_prediction_service.run_return_prediction()` now calls `ml_service.detect_leakage()`,
+    `detect_pairwise_leakage()`, and `detect_derived_metric_features()` against its 7
+    candidate features before training — any flagged feature is excluded from that run
+    (mirroring `resolve_training_features`'s exclude-and-continue behavior), verified
+    against real data to find NONE (see below) — this was a real, unverified assumption
+    before (the feature list "looked safe" by construction — pre-cutoff aggregates can't
+    literally see the future — but was never actually checked the way every other trained
+    model in this app is).
+  - Added cross-validation (previously absent entirely) and `compute_baseline_comparison()`
+    + `evaluate_model_strength()` — the same standard every other model in this app is
+    held to, applied here for the first time.
+  - `_build_pipeline()` now takes the (possibly leakage-reduced) feature lists as
+    parameters instead of reading fixed module constants, so an exclusion actually takes
+    effect rather than the pipeline silently continuing to use the excluded column.
+
+**Verified against real data** (`coffee_shop_transactions.csv`, through the real API, not
+a synthetic fixture): `leakage_warnings=[]` (confirms genuine safety, not just assumed),
+`features_used` unchanged (all 7 original features), baseline comparison `{baseline_score:
+0.538, model_score: 0.929, clearly_beats_baseline: True}`, `is_weak: False`. The actual
+prediction output is UNCHANGED (705 of 1150 predicted returners, matching the
+already-passing benchmark check against the answer key) — this was purely an added
+verification/reporting layer, not a change to the model or its predictions.
+
+**Remaining, explicitly NOT done** (Phase 0 Finding 2's other half): return-prediction
+still doesn't save an `MLModel` row via `prediction_service`, so there's no batch-
+prediction UI path for it — a customer-return-risk model can't be reused the way a
+`train_models()`-trained model can. This needs a real design decision (what would a batch
+prediction FILE even look like for a model trained on aggregated, not raw, features?) more
+than a mechanical wiring change, and is left open rather than half-implemented.
+
+Full backend suite: **250/250** (no regressions — `train_models()`'s own tests confirm the
+baseline-extraction refactor didn't change its behavior). Full benchmark: **66/67**
+(unchanged — this finding only added verification/reporting, not a behavior change to
+what the benchmark checks).
+
+## Next step
+
+Phases 1-5 (including the Finding 20 plan-confirmation follow-up and the segmentation-
+methodology fix, Finding 18) are all done for this round's scope — full benchmark
+**66/67**, full test suite **250/250**. Findings 6-21 are fixed, documented, or explicitly
+deferred per user decision; none is a silent/unknown gap. The only remaining benchmark
+failure is retail's Nov-Dec report gap, which is explicitly Phase 6 scope (see below).
+
+**Suggested next phase: Phase 6** (adaptive report) — Phase 0 Finding 3: report sections
+are a hardcoded `{% if model %}...{% elif clusters %}...{% elif transaction_analysis %}...`
+branch chain in `report.html`, not driven by the plan Phase 4 now computes for every
+dataset. This is also the fix for the one remaining benchmark failure (retail's Nov-Dec
+seasonal-peak narrative has no section to live in for the plain-regression path today).
 
 The BROADER Phase 2 scope remains open and deliberately deferred (not required for this
 round's stated goal):
