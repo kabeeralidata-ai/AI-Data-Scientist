@@ -30,6 +30,13 @@ class ConfirmTargetRequest(BaseModel):
     target_column: str
 
 
+class ConfirmPlanRequest(BaseModel):
+    # "Let the user change it" — overrides whatever the plan proposed (segmentation, or a
+    # transaction log's revenue/RFM/forecast pipeline) and instead runs supervised
+    # training on this column. Omitted/None confirms the plan as proposed.
+    target_column: Optional[str] = None
+
+
 class AutoAnalyzeJobResponse(BaseModel):
     id: uuid.UUID
     project_id: uuid.UUID

@@ -61,6 +61,22 @@ def test_auto_analyze_runs_clustering_when_no_target_is_detected(auth_client, mo
     assert start_resp.status_code == 201
     job_id = start_resp.json()["id"]
 
+    # Phase 4 requirement: the plan is shown to the user (with a reason and a confidence
+    # level per analysis, and an overall plan confidence) and must be explicitly confirmed
+    # before anything runs — segmentation is no longer a silent auto-run.
+    job = auth_client.get(f"/api/auto-analyze/{job_id}").json()
+    assert job["status"] == "awaiting_plan_confirmation"
+    plan = job["result_json"]["plan"]
+    assert plan["dataset_type"] == "general"
+    assert plan["confidence"] in ("high", "medium", "low", "none")
+    segmentation = next(a for a in plan["analyses"] if a["key"] == "segmentation")
+    assert segmentation["viable"] is True
+    assert segmentation["confidence"] in ("high", "medium", "low")
+    assert segmentation["reason"]
+
+    confirm_resp = auth_client.post(f"/api/auto-analyze/{job_id}/confirm-plan")
+    assert confirm_resp.status_code == 200
+
     job = auth_client.get(f"/api/auto-analyze/{job_id}").json()
     assert job["status"] == "completed"  # never "failed" just because there's no target
 
@@ -102,6 +118,20 @@ def test_auto_analyze_falls_back_to_general_analysis_when_clustering_is_not_viab
 
     start_resp = auth_client.post(f"/api/projects/{project_id}/auto-analyze", json={"dataset_id": dataset_id})
     job_id = start_resp.json()["id"]
+
+    # Even when nothing is viable, the plan still pauses for confirmation — the user gets
+    # a chance to override with their own target rather than silently landing on an
+    # EDA-only report with no say in the matter.
+    job = auth_client.get(f"/api/auto-analyze/{job_id}").json()
+    assert job["status"] == "awaiting_plan_confirmation"
+    plan = job["result_json"]["plan"]
+    segmentation = next(a for a in plan["analyses"] if a["key"] == "segmentation")
+    assert segmentation["viable"] is False
+    assert segmentation["confidence"] == "none"
+    assert segmentation["reason"]
+
+    confirm_resp = auth_client.post(f"/api/auto-analyze/{job_id}/confirm-plan")
+    assert confirm_resp.status_code == 200
 
     job = auth_client.get(f"/api/auto-analyze/{job_id}").json()
     assert job["status"] == "completed"

@@ -10,7 +10,7 @@ from app.core.database import get_db
 from app.models.auto_analyze_job import AutoAnalyzeJob, AutoAnalyzeJobStatus
 from app.models.dataset import Dataset
 from app.models.user import User
-from app.schemas.auto_analyze import AutoAnalyzeJobResponse, AutoAnalyzeRequest, ConfirmTargetRequest
+from app.schemas.auto_analyze import AutoAnalyzeJobResponse, AutoAnalyzeRequest, ConfirmPlanRequest, ConfirmTargetRequest
 from app.services import auto_analyze_service
 
 router = APIRouter(prefix="/api", tags=["auto-analyze"])
@@ -94,16 +94,24 @@ def confirm_target(
 def confirm_plan(
     job_id: uuid.UUID,
     background_tasks: BackgroundTasks,
+    payload: ConfirmPlanRequest = ConfirmPlanRequest(),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Confirms the transaction-log analysis plan shown to the user (revenue analytics,
-    customer/RFM, return prediction, forecasting) and starts running it."""
+    """Confirms the analysis plan shown to the user (transaction-log revenue/RFM/returns/
+    forecasting, or segmentation) and starts running it — or, if target_column is given,
+    overrides the plan entirely and runs supervised training on that column instead."""
     job = _get_owned_job(db, job_id, current_user)
     if job.status != AutoAnalyzeJobStatus.AWAITING_PLAN_CONFIRMATION:
         raise HTTPException(status_code=409, detail="This job is not awaiting plan confirmation.")
 
-    background_tasks.add_task(auto_analyze_service.confirm_plan_and_resume, job.id)
+    if payload.target_column is not None:
+        dataset = db.query(Dataset).filter(Dataset.id == job.dataset_id).first()
+        valid_columns = {c["name"] for c in (dataset.profile_json or {}).get("columns", [])} if dataset else set()
+        if payload.target_column not in valid_columns:
+            raise HTTPException(status_code=422, detail="The selected target column does not exist in this dataset.")
+
+    background_tasks.add_task(auto_analyze_service.confirm_plan_and_resume, job.id, payload.target_column)
     return job
 
 

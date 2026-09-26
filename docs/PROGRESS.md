@@ -17,7 +17,7 @@ file alone and continue correctly._
 | 2 — Data Understanding | ✅ Done (this round's scope) | Role-based post-outcome detection now lives in `data_understanding_service` (Findings 13-15) — genuinely target-independent, structural evidence, replacing the old correlation-based heuristic. `detect_dataset_type` reordering fix. Full benchmark: **61/64** (2026-09-26). Broader Phase 2 scope (new roles: count/rate/free-text, per-column unit tracking, Gemini tie-breaker for targets, full target-scoring merge) still open — see "Next step" — deliberately deferred, not required for this round's stated goal (role-based post-outcome + complaints_last_6_months). |
 | 3 — Cleaning | ✅ Done (this round's scope) | Plausibility-range cleaning added (age biological ceiling + time-unit-within-period physical ceiling — Finding 16). Telecom's 4 fraud call-minute values and 3 impossible ages (134/150/212) now genuinely corrected, not just statistically flagged. |
 | 3.5 — Segmentation methodology | ✅ Done | `run_clustering_analysis()` rebuilt to standard methodology: behavioral/usage features only (demographics/age describe segments afterward, never form them), skewed columns log-transformed, k chosen from silhouette + GMM BIC + bootstrap stability together — never silhouette alone, never the answer key. This resolved Finding 17 for real: k=4 exactly, 99.9% match rate as a post-hoc diagnostic. See Finding 18. |
-| 4 — Planner | ✅ Done (this round's scope) | New `planning_service.build_analysis_plan()` is the single shared entry point EVERY Auto Analyze run calls — previously only transaction-log datasets got an explicit plan object at all; now every dataset type does (`job.result_json["plan"]`), delegating to `transaction_analysis_service`'s existing viability math for transaction logs rather than duplicating it. See Finding 19. Execution engines (train/cluster/transaction-analytics) and the existing pause/resume UX are unchanged — a deliberate, lower-risk scope than a full control-flow rewrite. |
+| 4 — Planner | ✅ Done | New `planning_service.build_analysis_plan()` is the single shared entry point EVERY Auto Analyze run calls — previously only transaction-log datasets got an explicit plan object at all; now every dataset type does (`job.result_json["plan"]`), delegating to `transaction_analysis_service`'s existing viability math for transaction logs rather than duplicating it. See Finding 19. Execution engines (train/cluster/transaction-analytics) and the existing pause/resume UX are unchanged — a deliberate, lower-risk scope than a full control-flow rewrite. **Follow-up (Finding 20):** every plan entry now carries a `reason` and a `confidence` level (high/medium/low/none), plus an overall `plan["confidence"]`; segmentation — previously the one path with NO confirmation step at all — now always pauses for confirmation like the other two paths; `confirm-plan` accepts an optional `target_column` to override the plan entirely. Surfaced and fixed a real pre-existing bug along the way: coffee shop's plan reported "27028 days of history" due to a planted invalid date inflating the span calculation. |
 | 5 — Modeling safety | 🟡 Partial | Batch prediction now reconstructs date-derived features from raw uploads (Finding 11) — but `return_prediction_service.py` still bypasses `ml_service`'s safety entirely (Phase 0 finding #2, unchanged). |
 | 6 — Adaptive report | ⬜ Not started | Report sections are hardcoded template branches (model/clusters/transaction_analysis), not truly plan-driven — see Phase 0 finding #3 |
 | 7 — AI reliability | ⬜ Not started | Gemini service is unified and cached for supervised/clustering paths; transaction-log AI narrative does NOT use the same DB cache — see Phase 0 finding #4 |
@@ -712,13 +712,101 @@ existing branches still work exactly as before, just also produce a stored plan 
 Full benchmark: **63/64**, unchanged from the segmentation-methodology fix — the planner
 integration touches no scoring/execution logic, only adds a transparency layer.
 
+### Finding 20 — plan confirmation gap closed: reasons, confidence levels, mandatory confirmation, and an override — ✅ FIXED (2026-09-26)
+
+A direct audit (before Phase 5) of Phase 4's planner against 4 explicit requirements —
+show the plan with reasons, show a confidence level, require confirmation when confidence
+is low, let the user change it — found 3 real gaps:
+
+1. **No confidence level anywhere.** Every plan entry had `viable: bool` but nothing
+   describing HOW confident that estimate was.
+2. **Segmentation never paused for confirmation.** Supervised and transaction-log plans
+   already always pause; segmentation (`_run_general_analysis`) ran straight through with
+   zero visibility, regardless of confidence — so a low-confidence segmentation call could
+   execute completely unseen, the literal failure mode requirement #3 exists to prevent.
+3. **No way to change a segmentation or transaction-log plan.** Only the supervised path
+   let the user pick a different target; `confirm-plan` took no body at all.
+
+**Fixed**:
+  - `planning_service.py`: `_score_confidence()` buckets a target-candidate's raw score
+    into high/medium/low (calibrated against real scores observed across the 6 benchmark
+    datasets — a bare name-hint match scores 3-5, combined with a real cardinality-shape
+    match, 5-8); a close runner-up candidate (within 1.0 of the top score) downgrades
+    confidence one band, since a near-tie is itself evidence of ambiguity a raw score
+    alone hides. Segmentation's confidence comes from how far above the minimum viable
+    row/column counts the real numbers are. Every entry also gets a `reason` string. An
+    overall `plan["confidence"]` reports the PRIMARY analysis's confidence.
+  - `transaction_analysis_service.build_analysis_plan()`: the same treatment for
+    revenue_analytics/customer_rfm/return_prediction/sales_forecasting, confidence banded
+    on the margin above each analysis's existing viability threshold.
+  - `auto_analyze_service.py`: the `if not candidates:` branch now sets
+    `AWAITING_PLAN_CONFIRMATION` instead of calling `_run_general_analysis()` directly —
+    segmentation is confirmed exactly like the other two paths now, EVEN when nothing is
+    viable at all (giving the user a chance to override rather than landing on an EDA-only
+    report with no say in the matter). `confirm_plan_and_resume()` gained an optional
+    `target_column_override` parameter: if given, discards the plan and runs supervised
+    training on that column instead (the "let the user change it" requirement) — a single,
+    shared override mechanism now serves BOTH the segmentation and transaction-log paths.
+  - `schemas/auto_analyze.py` / `api/auto_analyze.py`: new `ConfirmPlanRequest` with an
+    optional `target_column`; the endpoint parameter needed a default instance
+    (`ConfirmPlanRequest()`), not just an optional field, since FastAPI otherwise still
+    requires SOME request body to be present — caught by the existing coffee-shop test
+    suite, which calls `/confirm-plan` with no body at all (confirming the default stays
+    backward compatible).
+
+**A real, pre-existing bug found while verifying this against real data** (not something
+this session introduced): generating an example plan for `coffee_shop_transactions.csv`
+reported "27028 day(s) of history" and "3861 week(s)" in the return-prediction/forecasting
+reasons — nonsensical for a dataset spanning about 15 months. Root cause: a planted
+invalid date (`2099-01-01`, one of the dataset's known 6 invalid dates) was included in
+`build_analysis_plan()`'s raw `parsed.max() - parsed.min()` span calculation, which had
+never been filtered by `flag_invalid_dates()` the way actual execution
+(`_run_transaction_log_analysis`) already does. The boolean `viable` flag was accidentally
+still correct either way (both the real ~454-day span and the inflated ~27,000-day one
+clear the 180-day threshold), which is exactly why this went unnoticed before — only
+surfacing the actual number in a `reason` string exposed it. Fixed by applying the same
+`flag_invalid_dates()` filter before computing span; corrected values: 454 days, 64 weeks.
+
+**Verified example plans, all 6 real datasets** (via the actual API, not a synthetic
+fixture):
+
+| Dataset | Status | Leading analysis | Overall confidence |
+|---|---|---|---|
+| customer_churn_dataset.csv | `awaiting_target_confirmation` | supervised_prediction → `churn` | high |
+| retail_sales_dataset.csv | `awaiting_target_confirmation` | supervised_prediction → `sales_amount` | high |
+| karachi_food_delivery_dataset.csv | `awaiting_target_confirmation` | supervised_prediction → `late_delivery` | high |
+| customer_retention_training.csv | `awaiting_target_confirmation` | supervised_prediction → `will_return_next_90_days` | high |
+| coffee_shop_transactions.csv | `awaiting_plan_confirmation` | revenue_analytics + customer_rfm + return_prediction + sales_forecasting, all viable | high |
+| telecom_subscribers_usage.csv | `awaiting_plan_confirmation` | supervised_prediction NOT viable (confidence: none) → segmentation (11 behavioral columns, 4000 rows) | high |
+
+Note: the 4 datasets with a confident supervised target still pause at
+`AWAITING_TARGET_CONFIRMATION` (the pre-existing, dedicated target-confirmation flow, not
+`AWAITING_PLAN_CONFIRMATION`) — both flows now carry the same reason/confidence
+information; they remain two distinct statuses because target confirmation's UI (a
+column-picker) and plan confirmation's UI (a checklist of analyses) are different shapes,
+not because one is more "confirmed" than the other.
+
+Verified: 3 new checks added to `test_general_analysis.py` (plan structure, confidence
+presence, segmentation now genuinely requiring confirmation before AND after a not-viable
+case) and `checks_telecom.py` (plan-confirmation pause + reason/confidence presence) — all
+pass. Full backend suite: **250/250**. Full benchmark: **66/67** (3 new checks, all
+passing; same single pre-existing Nov-Dec gap as before).
+
 ## Next step
 
-Phases 1-4 and the segmentation-methodology fix (Finding 18) are all done for this
-round's scope — full benchmark **63/64**, full test suite **250/250**. Findings 6-19 are
-fixed, documented, or explicitly deferred per user decision; none is a silent/unknown
-gap. The only remaining benchmark failure is retail's Nov-Dec report gap, which is
-explicitly Phase 6 scope (see below).
+Phases 1-4 (including the Finding 20 plan-confirmation follow-up) and the segmentation-
+methodology fix (Finding 18) are all done for this round's scope — full benchmark
+**66/67**, full test suite **250/250**. Findings 6-20 are fixed, documented, or explicitly
+deferred per user decision; none is a silent/unknown gap. The only remaining benchmark
+failure is retail's Nov-Dec report gap, which is explicitly Phase 6 scope (see below).
+
+**Now starting Phase 5** (modeling safety unification) — Phase 0 Finding 2, unchanged
+through every round so far: `return_prediction_service.py` (the coffee-shop transaction-
+log path's return-prediction model) has its own bespoke training code — fixed
+`NUMERIC_FEATURES`/`CATEGORICAL_FEATURES` lists, never leakage-checked, no baseline
+comparison, no weak-model warning — entirely separate from `ml_service.train_models()`'s
+real, tested leakage detection, baseline, and weak-model flagging. It also doesn't save a
+reusable pipeline via `prediction_service`, so there's no batch-prediction UI path for it.
 
 The BROADER Phase 2 scope remains open and deliberately deferred (not required for this
 round's stated goal):

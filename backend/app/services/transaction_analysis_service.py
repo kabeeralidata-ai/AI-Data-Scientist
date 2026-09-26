@@ -9,7 +9,7 @@ import pandas as pd
 from app.services import customer_analytics_service as cas
 from app.services import forecast_service
 from app.services import return_prediction_service as rps
-from app.services.cleaning_service import WALK_IN_LABEL
+from app.services.cleaning_service import WALK_IN_LABEL, flag_invalid_dates
 from app.services.customer_analytics_service import pick_column
 
 
@@ -17,7 +17,9 @@ def build_analysis_plan(column_roles: dict[str, dict], dataset_type_info: dict, 
     """The plan shown to the user BEFORE anything runs — spec: 'show the plan to the user
     to confirm before running'. Includes a real viability check for each analysis (not
     just "always include everything") so the plan honestly reflects what can actually be
-    computed from this dataset."""
+    computed from this dataset, plus a confidence level (how comfortably the real numbers
+    clear each viability threshold, not just whether they technically do) and a reason
+    string explaining both."""
     analyses = []
     if dataset_type_info["type"] != "transaction_log":
         return {"dataset_type": dataset_type_info["type"], "analyses": []}
@@ -29,6 +31,8 @@ def build_analysis_plan(column_roles: dict[str, dict], dataset_type_info: dict, 
             "description": "Total revenue, refunds, average order value, and revenue breakdowns by month, "
             "category, item, branch, payment method, hour of day, and day of week.",
             "viable": True,
+            "confidence": "high",
+            "reason": "Needs only the monetary column already required to classify this as a transaction log.",
         }
     )
 
@@ -37,19 +41,35 @@ def build_analysis_plan(column_roles: dict[str, dict], dataset_type_info: dict, 
     identified = df[customer_col].notna() & (df[customer_col] != WALK_IN_LABEL) if customer_col else pd.Series(False, index=df.index)
     n_identified_customers = int(df.loc[identified, customer_col].nunique()) if customer_col else 0
 
+    rfm_viable = n_identified_customers >= 10
+    rfm_confidence = "high" if n_identified_customers >= 50 else ("medium" if rfm_viable else "none")
     analyses.append(
         {
             "key": "customer_rfm",
             "label": "Customer Analytics & RFM Segmentation",
             "description": f"Aggregates {n_identified_customers} identified customer(s) (walk-ins excluded) into "
             "Recency/Frequency/Monetary segments (Champions, At Risk, Lost, ...).",
-            "viable": n_identified_customers >= 10,
+            "viable": rfm_viable,
+            "confidence": rfm_confidence,
+            "reason": f"{n_identified_customers} identified customer(s) (walk-ins excluded); needs at least 10.",
         }
     )
 
-    parsed = pd.to_datetime(df[timestamp_col], errors="coerce") if timestamp_col else pd.Series(dtype="datetime64[ns]")
+    # Excludes invalid/implausible dates (unparseable, future, or far outside the bulk of
+    # the column's own range — see flag_invalid_dates) BEFORE computing span/coverage, the
+    # same filtering run_full_transaction_analysis applies at actual execution time. Without
+    # this, a single planted bad date (e.g. a stray 2099 timestamp among 2025/2026 real
+    # ones) inflates span_days/weeks_covered by decades — still numerically "viable" either
+    # way, but a wildly wrong number to show the user in a confidence/reason string.
+    parsed_raw = pd.to_datetime(df[timestamp_col], errors="coerce") if timestamp_col else pd.Series(dtype="datetime64[ns]")
+    parsed = parsed_raw[~flag_invalid_dates(df[timestamp_col])] if timestamp_col else parsed_raw
     span_days = int((parsed.max() - parsed.min()).days) if parsed.notna().any() else 0
     return_viable = n_identified_customers >= 30 and span_days >= (rps.RETURN_WINDOW_DAYS * 2)
+    return_confidence = (
+        "high"
+        if n_identified_customers >= 100 and span_days >= (rps.RETURN_WINDOW_DAYS * 3)
+        else ("medium" if return_viable else "none")
+    )
     analyses.append(
         {
             "key": "return_prediction",
@@ -58,18 +78,27 @@ def build_analysis_plan(column_roles: dict[str, dict], dataset_type_info: dict, 
             f"again within the next {rps.RETURN_WINDOW_DAYS} days, using a time-based train/predict split "
             "(never trained on future data).",
             "viable": return_viable,
+            "confidence": return_confidence,
+            "reason": (
+                f"{n_identified_customers} identified customer(s) and {span_days} day(s) of history; needs at "
+                f"least 30 customers and {rps.RETURN_WINDOW_DAYS * 2} days to establish a time-based split."
+            ),
         }
     )
 
     money_col = pick_column(column_roles, "money", name_prefer=("total",))
     weeks_covered = int((parsed.max() - parsed.min()).days // 7) if timestamp_col and parsed.notna().any() else 0
+    forecast_viable = bool(money_col) and weeks_covered >= 12
+    forecast_confidence = "high" if weeks_covered >= 26 else ("medium" if forecast_viable else "none")
     analyses.append(
         {
             "key": "sales_forecasting",
             "label": "Sales Forecasting",
             "description": "Forecasts weekly revenue for the next ~13 weeks (shown aggregated to monthly), "
             "comparing several methods via a rolling backtest and picking the best-performing one.",
-            "viable": bool(money_col) and weeks_covered >= 12,
+            "viable": forecast_viable,
+            "confidence": forecast_confidence,
+            "reason": f"{weeks_covered} week(s) of history; needs at least 12 to backtest a forecast reliably.",
         }
     )
 

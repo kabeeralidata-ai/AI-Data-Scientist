@@ -62,6 +62,23 @@ def run(client) -> list[CheckResult]:
     assert start.status_code == 201, start.text
     job_id = start.json()["id"]
     job = poll_job(client, job_id, poll_attempts=60)
+    checks.append(
+        CheckResult("job pauses awaiting plan confirmation", job.get("status") == "awaiting_plan_confirmation", f"got {job.get('status')}")
+    )
+
+    plan = (job.get("result_json") or {}).get("plan") or {}
+    segmentation_entry = next((a for a in plan.get("analyses", []) if a["key"] == "segmentation"), {})
+    checks.append(
+        CheckResult(
+            "plan shows segmentation with a reason and a confidence level",
+            bool(segmentation_entry.get("reason")) and segmentation_entry.get("confidence") in ("high", "medium", "low", "none"),
+            f"segmentation entry={segmentation_entry}",
+        )
+    )
+
+    confirm = client.post(f"/api/auto-analyze/{job_id}/confirm-plan")
+    checks.append(CheckResult("confirm-plan accepted", confirm.status_code == 200, confirm.text[:300]))
+    job = poll_job(client, job_id, poll_attempts=60)
 
     result = job.get("result_json") or {}
     checks.append(CheckResult("plan = customer segmentation (no target forced)", result.get("target_column") is None, f"target_column={result.get('target_column')}, status={job.get('status')}"))

@@ -151,10 +151,19 @@ def confirm_target_and_resume(job_id, target_column: str) -> None:
         db.close()
 
 
-def confirm_plan_and_resume(job_id) -> None:
-    """Resumes a job paused at AWAITING_PLAN_CONFIRMATION (a transaction-log dataset) —
-    the user has reviewed build_analysis_plan()'s output and asked to proceed. Runs
-    exactly the analyses the plan marked viable; nothing here is re-derived from scratch,
+def confirm_plan_and_resume(job_id, target_column_override: str | None = None) -> None:
+    """Resumes a job paused at AWAITING_PLAN_CONFIRMATION — the user has reviewed
+    planning_service.build_analysis_plan()'s output (with each analysis's viability,
+    confidence, and reason) and asked to proceed, either as proposed or by overriding it.
+
+    `target_column_override`: the "let the user change it" escape hatch — if given,
+    discards whatever the plan proposed (segmentation, or a transaction log's revenue/RFM/
+    forecast pipeline) and instead runs supervised training on the column the user chose,
+    exactly like confirm_target_and_resume does for the target-confirmation path.
+
+    Otherwise dispatches on the dataset type already computed and stored on the job:
+    transaction_log -> the transaction-log pipeline; everything else -> the
+    segmentation/general-analysis pipeline. Nothing here is re-derived from scratch,
     reusing the column_roles/plan already computed and stored on the job."""
     db = SessionLocal()
     try:
@@ -165,11 +174,25 @@ def confirm_plan_and_resume(job_id) -> None:
         dataset = db.query(Dataset).filter(Dataset.id == job.dataset_id).first()
         project = db.query(Project).filter(Project.id == job.project_id).first()
 
+        if target_column_override:
+            job.confirmed_target_column = target_column_override
+            job.status = AutoAnalyzeJobStatus.RUNNING
+            project.status = ProjectStatus.ANALYZING
+            _set_step(job, "target_detection", "completed", f"Plan overridden — user selected target: '{target_column_override}'")
+            db.commit()
+            _continue_training(db, job, dataset, project, target_column_override)
+            return
+
         job.status = AutoAnalyzeJobStatus.RUNNING
         project.status = ProjectStatus.ANALYZING
         db.commit()
 
-        _run_transaction_log_analysis(db, job, dataset, project)
+        dataset_type = ((job.result_json or {}).get("dataset_type") or {}).get("type")
+        if dataset_type == "transaction_log":
+            _run_transaction_log_analysis(db, job, dataset, project)
+        else:
+            column_roles = (job.result_json or {}).get("column_roles")
+            _run_general_analysis(db, job, dataset, project, column_roles)
     finally:
         db.close()
 
@@ -349,17 +372,20 @@ def _run_profile_through_target_detection(db, job: AutoAnalyzeJob, dataset: Data
 
     if not candidates:
         # Spec requirement: "If no target exists, allow analysis without supervised ML" —
-        # the pipeline must not force every dataset into classification/regression. Falls
-        # through to unsupervised clustering (or an EDA-only summary if even that isn't
-        # viable) instead of failing the job outright.
+        # the pipeline must not force every dataset into classification/regression. Pauses
+        # for plan confirmation (segmentation's plan entry, with its own confidence/reason)
+        # rather than silently running clustering — previously this ran straight through
+        # with no confirmation step at all, the one gap left in "every plan is shown to the
+        # user before it runs" (see docs/PROGRESS.md Finding 20). The user can confirm as
+        # proposed, or override with their own target_column via confirm_plan_and_resume.
+        job.status = AutoAnalyzeJobStatus.AWAITING_PLAN_CONFIRMATION
         _set_step(
             job,
             "target_detection",
             "completed",
-            "No confident target column found — proceeding with unsupervised analysis instead.",
+            "No confident target column found — awaiting plan confirmation for unsupervised analysis instead.",
         )
         db.commit()
-        _run_general_analysis(db, job, dataset, project, column_roles)
         return None, dataset
 
     dataset_column_names = {c["name"] for c in (dataset.profile_json or {}).get("columns", [])}
