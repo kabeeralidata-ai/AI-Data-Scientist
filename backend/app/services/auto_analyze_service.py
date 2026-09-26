@@ -16,6 +16,7 @@ from app.services import (
     dataset_service,
     eda_service,
     ml_service,
+    planning_service,
     report_service,
     transaction_analysis_service,
 )
@@ -287,7 +288,9 @@ def _run_profile_through_target_detection(db, job: AutoAnalyzeJob, dataset: Data
     # changed row/column shape (units stripped, walk-in labels applied, etc.).
     if dataset_type_info["type"] == "transaction_log":
         cleaned_df = dataset_service.load_dataframe(dataset)
-        plan = transaction_analysis_service.build_analysis_plan(column_roles, dataset_type_info, cleaned_df)
+        plan = planning_service.build_analysis_plan(
+            cleaned_df, column_roles, dataset_type_info, dataset.profile_json or {}, target_candidates=[]
+        )
         result = dict(job.result_json or {})
         result["dataset_type"] = dataset_type_info
         result["formula_columns"] = formula_columns
@@ -328,6 +331,20 @@ def _run_profile_through_target_detection(db, job: AutoAnalyzeJob, dataset: Data
     candidates = dataset_service.score_target_candidates(dataset.profile_json, project.description, formula_columns=formula_columns)
     job.target_candidates_json = candidates
     flag_modified(job, "target_candidates_json")
+
+    # Phase 4: the same shared planner the transaction-log branch above uses, computed
+    # here too so EVERY Auto Analyze run (not just transaction logs) stores one
+    # transparent plan of which analyses were considered viable and why — previously
+    # only the transaction-log path had an explicit plan object at all.
+    result = dict(job.result_json or {})
+    result["dataset_type"] = dataset_type_info
+    result["formula_columns"] = formula_columns
+    result["column_roles"] = column_roles
+    result["plan"] = planning_service.build_analysis_plan(
+        dataset_service.load_dataframe(dataset), column_roles, dataset_type_info, dataset.profile_json or {}, candidates
+    )
+    job.result_json = result
+    flag_modified(job, "result_json")
     db.commit()
 
     if not candidates:

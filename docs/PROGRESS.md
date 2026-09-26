@@ -17,7 +17,7 @@ file alone and continue correctly._
 | 2 — Data Understanding | ✅ Done (this round's scope) | Role-based post-outcome detection now lives in `data_understanding_service` (Findings 13-15) — genuinely target-independent, structural evidence, replacing the old correlation-based heuristic. `detect_dataset_type` reordering fix. Full benchmark: **61/64** (2026-09-26). Broader Phase 2 scope (new roles: count/rate/free-text, per-column unit tracking, Gemini tie-breaker for targets, full target-scoring merge) still open — see "Next step" — deliberately deferred, not required for this round's stated goal (role-based post-outcome + complaints_last_6_months). |
 | 3 — Cleaning | ✅ Done (this round's scope) | Plausibility-range cleaning added (age biological ceiling + time-unit-within-period physical ceiling — Finding 16). Telecom's 4 fraud call-minute values and 3 impossible ages (134/150/212) now genuinely corrected, not just statistically flagged. |
 | 3.5 — Segmentation methodology | ✅ Done | `run_clustering_analysis()` rebuilt to standard methodology: behavioral/usage features only (demographics/age describe segments afterward, never form them), skewed columns log-transformed, k chosen from silhouette + GMM BIC + bootstrap stability together — never silhouette alone, never the answer key. This resolved Finding 17 for real: k=4 exactly, 99.9% match rate as a post-hoc diagnostic. See Finding 18. |
-| 4 — Planner | ⬜ Not started | `transaction_analysis_service.build_analysis_plan()` exists for transaction logs only; no segmentation/prediction planner yet |
+| 4 — Planner | ✅ Done (this round's scope) | New `planning_service.build_analysis_plan()` is the single shared entry point EVERY Auto Analyze run calls — previously only transaction-log datasets got an explicit plan object at all; now every dataset type does (`job.result_json["plan"]`), delegating to `transaction_analysis_service`'s existing viability math for transaction logs rather than duplicating it. See Finding 19. Execution engines (train/cluster/transaction-analytics) and the existing pause/resume UX are unchanged — a deliberate, lower-risk scope than a full control-flow rewrite. |
 | 5 — Modeling safety | 🟡 Partial | Batch prediction now reconstructs date-derived features from raw uploads (Finding 11) — but `return_prediction_service.py` still bypasses `ml_service`'s safety entirely (Phase 0 finding #2, unchanged). |
 | 6 — Adaptive report | ⬜ Not started | Report sections are hardcoded template branches (model/clusters/transaction_analysis), not truly plan-driven — see Phase 0 finding #3 |
 | 7 — AI reliability | ⬜ Not started | Gemini service is unified and cached for supervised/clustering paths; transaction-log AI narrative does NOT use the same DB cache — see Phase 0 finding #4 |
@@ -671,23 +671,54 @@ Full benchmark: **63/64** (up from 61/64 — both telecom checks now pass). Full
 suite: **250/250**. The one remaining failure is unrelated to clustering: retail's
 Nov-Dec seasonal-peak narrative (pre-existing Phase 4/6 report-architecture gap).
 
+## Phase 4 — unified analysis planner (2026-09-26)
+
+Root cause #4's "forced/narrow analysis path" concern and Phase 0 Finding 1's documented
+duplication: before this phase, the decision of which analyses a dataset supports was
+split three ways — `dataset_service.score_target_candidates()` decided supervised
+viability inline in `auto_analyze_service`, `ml_service.run_clustering_analysis()`'s own
+internal checks decided clustering viability (discoverable only by attempting it, no
+pre-execution estimate at all), and `transaction_analysis_service.build_analysis_plan()`
+was a SEPARATE, transaction-log-only planner that was the only one of the three that
+actually produced an explicit, user-facing plan object.
+
+### Finding 19 — one shared planner now used by every Auto Analyze run — ✅ FIXED
+
+New `app/services/planning_service.py`, `build_analysis_plan()` — the single entry point
+every Auto Analyze run calls right after Data Understanding/target-candidate scoring:
+  - For a `transaction_log` dataset: delegates to `transaction_analysis_service`'s
+    existing, already-tested viability math for revenue/RFM/return-prediction/forecasting
+    entries, rather than duplicating it.
+  - For every other dataset type: produces `supervised_prediction` (viable iff
+    `score_target_candidates` found a candidate; includes the suggested target) and
+    `segmentation` (viable iff enough rows and behavioral numeric columns exist — a
+    cheap pre-execution ESTIMATE, never overriding what `run_clustering_analysis()`'s
+    own real execution actually decides).
+
+**Deliberately scoped narrower than a full control-flow rewrite**: the plan is now
+computed and stored (`job.result_json["plan"]`) for EVERY dataset type — previously only
+transaction-log jobs had a `plan` key at all — but the actual EXECUTION dispatch (target-
+confirmation pause vs. clustering fallback vs. transaction-log plan-confirmation pause)
+and the working, heavily-tested pause/resume UX are UNCHANGED. A transaction-log dataset
+still isn't ALSO scored for a supervised target — that mutual exclusivity is an existing,
+already-validated design decision, not something this phase's scope required revisiting.
+Unifying the three EXECUTION engines themselves (`ml_service.train_models`,
+`ml_service.run_clustering_analysis`, `transaction_analysis_service.run_full_transaction_analysis`)
+into one is a materially bigger, higher-risk change than unifying the DECISION of which
+to use — the latter is what root cause #4 and Finding 1 actually describe as duplicated.
+
+Verified: full backend suite 250/250 (no regressions — the planner is purely additive:
+existing branches still work exactly as before, just also produce a stored plan now).
+Full benchmark: **63/64**, unchanged from the segmentation-methodology fix — the planner
+integration touches no scoring/execution logic, only adds a transparency layer.
+
 ## Next step
 
-Phase 1 (harness, all 6 datasets), this round's Phase 2 scope (role-based post-outcome
-detection), Phase 3 (plausibility-range cleaning), and the segmentation-methodology fix
-(Finding 18) are all done — full benchmark **63/64**, full test suite **250/250**.
-Findings 6-18 are fixed, documented, or explicitly deferred per user decision; none is a
-silent/unknown gap. The only remaining benchmark failure is retail's Nov-Dec report gap,
-which is explicitly Phase 6 scope (see below).
-
-**Now starting Phase 4** (the unified planner). Per the task's original spec: ONE shared
-planner that decides which analyses a dataset supports — prediction/classification,
-segmentation, transaction/revenue analytics, forecasting — instead of the current
-3-way hardcoded branch in `auto_analyze_service._run_profile_through_target_detection()`
-(supervised target found -> train; no target -> clustering; `dataset_type ==
-"transaction_log"` -> a SEPARATE bespoke planner, `transaction_analysis_service.build_analysis_plan()`,
-that only that one path uses). This is root cause #4's "forced/narrow analysis path"
-concern and Phase 0 Finding 1's documented duplication.
+Phases 1-4 and the segmentation-methodology fix (Finding 18) are all done for this
+round's scope — full benchmark **63/64**, full test suite **250/250**. Findings 6-19 are
+fixed, documented, or explicitly deferred per user decision; none is a silent/unknown
+gap. The only remaining benchmark failure is retail's Nov-Dec report gap, which is
+explicitly Phase 6 scope (see below).
 
 The BROADER Phase 2 scope remains open and deliberately deferred (not required for this
 round's stated goal):
