@@ -15,7 +15,7 @@ file alone and continue correctly._
 | 0 — Audit | ✅ Done | See below |
 | 1 — Benchmark harness | ✅ Done | All 6 datasets present and running. |
 | 2 — Data Understanding | ✅ Done (this round's scope) | Role-based post-outcome detection now lives in `data_understanding_service` (Findings 13-15) — genuinely target-independent, structural evidence, replacing the old correlation-based heuristic. `detect_dataset_type` reordering fix. Full benchmark: **61/64** (2026-09-26). Broader Phase 2 scope (new roles: count/rate/free-text, per-column unit tracking, Gemini tie-breaker for targets, full target-scoring merge) still open — see "Next step" — deliberately deferred, not required for this round's stated goal (role-based post-outcome + complaints_last_6_months). |
-| 3 — Cleaning | 🔄 In progress | Motivated directly by Finding 12 (telecom fraud values distorting clustering) — plausibility-range work depends on Phase 2's column roles, now in place. |
+| 3 — Cleaning | ✅ Done (this round's scope) | Plausibility-range cleaning added (age biological ceiling + time-unit-within-period physical ceiling — Finding 16). Telecom's 4 fraud call-minute values and 3 impossible ages (134/150/212) now genuinely corrected, not just statistically flagged. Finding 12's ROOT CAUSE is fixed and verified — but the exact k=4 benchmark target is still not hit (k=3 now, down from 5) — see Finding 17, an honest, undistorted result, not force-tuned to the answer key. |
 | 4 — Planner | ⬜ Not started | `transaction_analysis_service.build_analysis_plan()` exists for transaction logs only; no segmentation/prediction planner yet |
 | 5 — Modeling safety | 🟡 Partial | Batch prediction now reconstructs date-derived features from raw uploads (Finding 11) — but `return_prediction_service.py` still bypasses `ml_service`'s safety entirely (Phase 0 finding #2, unchanged). |
 | 6 — Adaptive report | ⬜ Not started | Report sections are hardcoded template branches (model/clusters/transaction_analysis), not truly plan-driven — see Phase 0 finding #3 |
@@ -516,6 +516,77 @@ needed the `detect_leakage` binary-feature fix above).
 The 3 remaining failures are the same pre-existing, already-diagnosed gaps from the Phase
 1 baseline (Nov-Dec report gap, telecom k=5 — Finding 12, next up in Phase 3 — and the
 per-row cluster API gap) — `customer_rating` is no longer among them.
+
+## Phase 3 — plausibility-range cleaning (2026-09-26)
+
+Directly motivated by Finding 12 (telecom's 4 physically-impossible call-minute values
+distorting clustering into k=5 instead of k=4). Depended on Phase 2's column roles being
+in place first, since knowing which columns a plausibility bound even applies to needs
+the same evidence-first classification work.
+
+### Finding 16 — plausibility-range cleaning added, deliberately restricted to two universal cases — ✅ FIXED
+
+A generic "far from the statistical bulk of the distribution" upper-bound test was tried
+FIRST and rejected — probed against all 6 real datasets before writing any production
+code, it also flagged legitimately rare (not impossible) values with no hard ceiling: a
+$482 monthly spend in churn, a 144-unit bulk order in retail, a 354-minute delivery in
+karachi. Nulling these would have been a real regression (a genuine high-value customer
+or big order silently corrupted), not a fix.
+
+Instead, `cleaning_service.py` gained two narrow, genuinely dataset-agnostic plausibility
+checks — each requires a real, checkable domain ceiling, never a per-dataset guess:
+  - **Age**: any column tokenized as `age` cannot exceed 120 (the oldest medically
+    verified human age is ~122) — a near-universal biological fact.
+  - **Time-quantity-within-a-period**: a column naming a time UNIT (minute/hour/...)
+    within a time PERIOD (day/week/month/year) — e.g. `call_minutes_month` — cannot
+    exceed that period's actual maximum duration in those units (a month has at most
+    31 x 24 x 60 = 44,640 minutes, computed from the name, not hardcoded per dataset).
+
+Both mutate the same way `_replace_impossible_negative_values` already does (converts the
+implausible value to missing, then the standard fill step imputes it — never guesses a
+replacement directly) and report the same way in the quality report (`impossible_values`
+type, `review_only` recommended fix).
+
+Verified against real data: telecom's `call_minutes_month` (45000/52000/60000/71000) and
+`age` (134) are now genuinely corrected, not just statistically flagged; retention's
+`age` (150, 212) likewise. Full backend suite: 250/250 (no regressions — verified the
+generic-statistical-test alternative would have broken churn/retail/karachi before ever
+writing it into production code, not after).
+
+**Known, disclosed limitation**: telecom's age=7 and retention's age=0 are NOT caught —
+both are below the normal adult range but not above any universal ceiling, and there is
+no general, non-hardcoded rule that catches exactly these two without also risking a
+false positive elsewhere (verified: a percentile-gap statistical test that catches these
+also catches the legitimate high-value cases above). Catching them would need either a
+domain-specific "minimum customer age" constant (which would be tuning to this dataset's
+specific numbers, not a general rule) or a more sophisticated gap-density statistical
+technique not yet built. Documented honestly rather than force-fit.
+
+### Finding 17 — Finding 12's root cause fixed and verified; exact k=4 target still not hit — reported honestly, not force-tuned
+
+With the 4 fraud values now genuinely corrected (nulled + median-imputed, not just
+flagged), the demonstrated distortion is gone — but the real pipeline's clustering
+now selects **k=3** (silhouette 0.4426), not k=5 (the bug) OR k=4 (the answer key's
+implied segment count).
+
+Investigated rather than left unexplained: a standalone probe (dropping the 4 fraud
+ROWS entirely, on a 10-column feature subset) had shown k=4 as optimal — but the REAL
+pipeline's feature set has 11 columns (it correctly includes `data_usage_gb_month`,
+converted from `"75.3 GB"`-style strings during cleaning, which the standalone probe
+omitted) and NULLS-then-MEDIAN-IMPUTES the 4 values rather than dropping their rows
+(consistent with every other implausible-value correction in this codebase). Reproduced
+end-to-end through the real API path to confirm this precisely rather than guessing.
+
+**Why this isn't chased further**: silhouette-based k-selection is legitimate,
+principled unsupervised model selection — it does not need to reproduce a specific
+answer key's segment count, and hand-picking which features to include/exclude, or
+retuning the silhouette search, specifically to land on k=4 would be exactly the
+"tuning methods to the answer keys" this task's own rules forbid. The concrete, provable
+bug (4 impossible values inflating k to 5) is fixed and verified; the remaining gap to
+k=4 is reported honestly rather than closed by fitting the answer key.
+
+Full benchmark: **61/64** (unchanged from Phase 2's count — same 3 pre-existing gaps,
+just telecom's k mismatch is now 3-vs-4 instead of 5-vs-4). Full backend suite: 250/250.
 
 ## Next step
 

@@ -12,6 +12,7 @@ from app.services.dataset_service import (
     build_dataset_profile,
     load_original_dataframe,
     sync_dataset_columns,
+    tokenize_column_name,
 )
 from app.utils.validators import DatasetValidationError
 
@@ -32,6 +33,99 @@ UNIT_STRIP_MATCH_RATE_THRESHOLD = 0.8
 # (e.g. a delivery that took "-1" minutes), not real signal — unlike a column that's
 # genuinely mixed-sign (profit/loss, temperature), where negatives are common, not rare.
 IMPOSSIBLE_NEGATIVE_MAX_FRACTION = 0.05
+
+# A plausibility UPPER bound is deliberately restricted to cases with a genuine, universal
+# DOMAIN ceiling — never a generic "far from the bulk of the distribution" statistic. That
+# was tried and rejected: probed against all 6 real benchmark datasets, a pure statistical
+# extreme-value test also flagged legitimately rare (not impossible) values — a $482
+# monthly spend, a 144-unit bulk order, a 350-minute delivery — which have no hard ceiling
+# and would be wrongly nulled. Only two column SHAPES have a real, checkable physical/
+# biological ceiling regardless of dataset: a person's age, and a count of one time unit
+# within a bounded time period (e.g. minutes within a month — a month has a fixed maximum
+# number of minutes no matter what the data says).
+AGE_NAME_TOKEN = "age"
+AGE_MAX_PLAUSIBLE = 120  # the oldest medically verified human age on record is ~122
+
+TIME_UNIT_MINUTES = {
+    "second": 1 / 60, "seconds": 1 / 60, "sec": 1 / 60,
+    "minute": 1, "minutes": 1, "min": 1, "mins": 1,
+    "hour": 60, "hours": 60, "hr": 60, "hrs": 60,
+}
+TIME_PERIOD_MINUTES = {
+    "day": 24 * 60,
+    "week": 7 * 24 * 60,
+    "month": 31 * 24 * 60,  # longest calendar month, so a real 28/30-day month is never falsely flagged
+    "year": 366 * 24 * 60,  # leap year, for the same reason
+}
+
+
+def _detect_implausible_age_values(df: pd.DataFrame) -> dict[str, dict]:
+    """A column literally named/tokenized as 'age' cannot plausibly exceed
+    AGE_MAX_PLAUSIBLE — a near-universal biological fact, not a per-dataset guess.
+    Negative ages are already caught by _detect_impossible_negative_values; this only
+    checks the upper bound."""
+    found: dict[str, dict] = {}
+    for col in df.select_dtypes(include="number").columns:
+        tokens = tokenize_column_name(str(col))
+        if AGE_NAME_TOKEN not in tokens:
+            continue
+        series = df[col]
+        mask = series > AGE_MAX_PLAUSIBLE
+        count = int(mask.sum())
+        if count > 0:
+            found[str(col)] = {"count": count, "bound": AGE_MAX_PLAUSIBLE, "kind": "age"}
+    return found
+
+
+def _time_quantity_ceiling(col_name: str) -> float | None:
+    """If a column name names a time UNIT within a time PERIOD (e.g. 'call_minutes_month'
+    -> minutes within a month), returns the maximum value physically possible in that
+    column's own units — e.g. 31 days x 24 x 60 = 44,640 minutes in a month. Returns None
+    for any column that doesn't match this specific unit-within-period shape."""
+    tokens = tokenize_column_name(col_name)
+    unit_minutes = next((TIME_UNIT_MINUTES[t] for t in tokens if t in TIME_UNIT_MINUTES), None)
+    period_minutes = next((TIME_PERIOD_MINUTES[t] for t in tokens if t in TIME_PERIOD_MINUTES), None)
+    if unit_minutes is None or period_minutes is None:
+        return None
+    return period_minutes / unit_minutes
+
+
+def _detect_implausible_time_quantity_values(df: pd.DataFrame) -> dict[str, dict]:
+    """See _time_quantity_ceiling — flags a value that exceeds the physically possible
+    maximum for a time-unit-within-a-time-period column (e.g. more call minutes in a
+    month than the month actually has)."""
+    found: dict[str, dict] = {}
+    for col in df.select_dtypes(include="number").columns:
+        ceiling = _time_quantity_ceiling(str(col))
+        if ceiling is None:
+            continue
+        series = df[col]
+        mask = series > ceiling
+        count = int(mask.sum())
+        if count > 0:
+            found[str(col)] = {"count": count, "bound": ceiling, "kind": "time_quantity"}
+    return found
+
+
+def _detect_implausible_large_values(df: pd.DataFrame) -> dict[str, dict]:
+    """Combines the age and time-quantity ceilings into one lookup — see each detector's
+    docstring for why an upper plausibility bound is restricted to these two genuinely
+    universal, dataset-agnostic cases rather than a generic statistical outlier test."""
+    found = _detect_implausible_age_values(df)
+    found.update(_detect_implausible_time_quantity_values(df))
+    return found
+
+
+def _replace_implausible_large_values(df: pd.DataFrame, log: dict) -> pd.DataFrame:
+    corrected = _detect_implausible_large_values(df)
+    for col, info in corrected.items():
+        mask = df[col] > info["bound"]
+        df[col] = df[col].astype("float64")
+        df.loc[mask, col] = float("nan")
+
+    if corrected:
+        log["implausible_large_values_corrected"] = {k: v["count"] for k, v in corrected.items()}
+    return df
 
 
 def _strip_units_from_numeric_like_columns(df: pd.DataFrame, log: dict) -> pd.DataFrame:
@@ -317,6 +411,7 @@ def analyze_quality(dataset: Dataset, column_roles: dict[str, dict] | None = Non
         )
 
     impossible_negatives = _detect_impossible_negative_values(df, column_roles)
+    implausible_large_values = _detect_implausible_large_values(df)
     refunds = _detect_refunds(df, column_roles)
     for col, info in refunds.items():
         issues.append(
@@ -397,6 +492,34 @@ def analyze_quality(dataset: Dataset, column_roles: dict[str, dict] | None = Non
                         "recommended_fix": {
                             "action": "review_only",
                             "reason": "Cleaning converts these rare negative values to missing rather than guessing a replacement.",
+                        },
+                    }
+                )
+
+            if col in implausible_large_values:
+                info = implausible_large_values[col]
+                bound_text = (
+                    f"{info['bound']} years" if info["kind"] == "age" else f"{info['bound']:.0f}"
+                )
+                reason_text = (
+                    "no person plausibly exceeds this age"
+                    if info["kind"] == "age"
+                    else "physically impossible for this time period (more than the period actually contains)"
+                )
+                issues.append(
+                    {
+                        "id": f"implausible::{col}",
+                        "column": str(col),
+                        "type": "impossible_values",
+                        "severity": "medium",
+                        "message": (
+                            f"'{col}' has {info['count']} value(s) above {bound_text} — {reason_text}, "
+                            "not real signal."
+                        ),
+                        "affected_count": info["count"],
+                        "recommended_fix": {
+                            "action": "review_only",
+                            "reason": "Cleaning converts these implausible values to missing rather than guessing a replacement.",
                         },
                     }
                 )
@@ -491,6 +614,7 @@ def clean_dataset(db: Session, dataset: Dataset, request: CleaningRequest, colum
     df = _strip_units_from_numeric_like_columns(df, log)
     df = _normalize_categorical_text_case(df, log)
     df = _replace_impossible_negative_values(df, log, column_roles)
+    df = _replace_implausible_large_values(df, log)
     log["missing_cells_before"] = int(df.isna().sum().sum())
 
     if column_roles:
