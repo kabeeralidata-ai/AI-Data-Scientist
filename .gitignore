@@ -13,6 +13,10 @@ backend/test.db
 backend/test_storage/
 backend/htmlcov/
 backend/.coverage
+backend/backend_run.log
+backend/*.log
+backend/benchmark.db
+backend/benchmark_storage/
 
 # Storage
 storage/uploads/*
