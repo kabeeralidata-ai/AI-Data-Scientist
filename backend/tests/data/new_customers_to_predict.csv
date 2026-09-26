@@ -1,0 +1,501 @@
+customer_id,signup_date,city,gender,age,acquisition_channel,membership_tier,preferred_payment,uses_mobile_app,newsletter_subscribed,total_orders,total_spent_pkr,avg_order_value_pkr,orders_last_90_days,days_since_last_order,avg_delivery_delay_days,product_returns,complaints_filed,coupon_usage_ratio,avg_rating_given
+CUS-90000,2025-06-13,Islamabad,Male,51.0,Organic,None,Cash on Delivery,Yes,No,3,9780.0,3583.0,0,42,2.9,0,0,0.61,3.3
+CUS-90001,2024-10-16,Islamabad,Female,42.0,Google Search,Gold,Cash on Delivery,No,No,12,31650.0,2682.0,1,16,0.8,1,1,0.31,3.3
+CUS-90002,2024-10-25,Karachi,Female,46.0,Google Search,Silver,Cash on Delivery,No,No,5,3281.0,665.0,0,28,3.6,0,2,0.8,4.0
+CUS-90003,2024-07-24,Hyderabad,Male,58.0,Referral,None,Cash on Delivery,No,No,6,15027.0,2278.0,0,22,1.6,1,0,0.45,3.8
+CUS-90004,2025-01-13,Karachi,Male,38.0,Organic,None,Cash on Delivery,No,No,5,18998.0,3479.0,1,7,1.4,1,2,0.35,4.0
+CUS-90005,2025-05-27,Lahore,Male,43.0,Facebook Ads,None,JazzCash,Yes,Yes,8,18942.0,2343.0,2,45,2.0,1,0,0.3,4.5
+CUS-90006,2025-08-30,Peshawar,Male,44.0,Instagram,None,JazzCash,Yes,No,3,10740.0,3329.0,0,47,2.6,0,0,0.15,4.1
+CUS-90007,2025-04-09,Multan,Female,58.0,TikTok,Silver,Cash on Delivery,Yes,Yes,13,31709.0,2223.0,2,17,1.9,2,0,0.29,4.3
+CUS-90008,2024-11-20,Peshawar,Male,34.0,Google Search,Gold,Cash on Delivery,No,No,12,86295.0,7235.0,5,7,7.1,0,1,0.49,2.2
+CUS-90009,2026-05-05,Rawalpindi,Male,33.0,Instagram,Silver,Cash on Delivery,Yes,No,1,843.0,895.0,0,4,1.4,0,0,0.14,4.0
+CUS-90010,2024-10-31,Islamabad,Female,62.0,TikTok,None,Cash on Delivery,Yes,Yes,5,9698.0,1903.0,2,83,1.1,1,0,0.56,5.0
+CUS-90011,2024-02-27,Karachi,Female,62.0,TikTok,Gold,Cash on Delivery,No,Yes,15,45062.0,2740.0,3,12,1.0,2,1,0.09,4.4
+CUS-90012,2026-03-02,Rawalpindi,Female,44.0,Google Search,None,Card,No,No,2,7032.0,3401.0,1,87,5.6,1,0,0.6,3.6
+CUS-90013,2025-10-25,Peshawar,Male,26.0,Facebook Ads,None,Cash on Delivery,No,Yes,6,28985.0,4862.0,1,29,0.6,0,0,0.28,3.7
+CUS-90014,2024-06-04,Islamabad,Male,60.0,Organic,None,JazzCash,No,No,8,35648.0,4857.0,0,1,3.4,1,1,0.14,3.9
+CUS-90015,2024-09-07,Lahore,Female,55.0,Organic,None,Card,Yes,Yes,9,16440.0,1733.0,1,4,0.4,0,0,0.27,4.0
+CUS-90016,2025-03-24,Lahore,Male,58.0,Facebook Ads,Silver,Easypaisa,No,No,8,22678.0,2846.0,2,54,0.8,0,0,0.25,4.7
+CUS-90017,2024-02-13,Karachi,Female,61.0,Referral,None,JazzCash,No,Yes,6,16794.0,2905.0,0,42,0.5,0,1,0.22,4.2
+CUS-90018,2024-06-21,Lahore,Male,52.0,Organic,Gold,Card,Yes,Yes,7,28712.0,4527.0,0,72,1.2,0,2,0.31,4.1
+CUS-90019,2024-07-16,Hyderabad,Female,54.0,Instagram,None,Card,No,No,7,16358.0,2236.0,1,52,2.7,2,1,0.41,3.7
+CUS-90020,2025-08-11,Multan,Male,58.0,Instagram,None,Cash on Delivery,Yes,No,6,37014.0,6739.0,1,1,2.3,1,0,0.29,4.9
+CUS-90021,2026-02-24,Lahore,Female,33.0,Facebook Ads,Silver,Easypaisa,Yes,No,3,9807.0,3116.0,0,104,0.5,0,0,0.02,4.4
+CUS-90022,2025-06-19,Multan,Female,58.0,Instagram,None,JazzCash,Yes,Yes,4,7480.0,1985.0,1,124,1.0,1,0,0.41,4.5
+CUS-90023,2025-10-14,Karachi,Male,18.0,Google Search,Silver,Cash on Delivery,No,No,3,12207.0,3852.0,0,4,2.3,1,0,0.39,5.0
+CUS-90024,2024-09-15,Lahore,Male,61.0,Facebook Ads,None,Cash on Delivery,Yes,No,6,16988.0,2760.0,0,38,1.2,1,0,0.16,4.2
+CUS-90025,2025-12-04,Karachi,Female,22.0,Instagram,Silver,Cash on Delivery,No,Yes,3,14279.0,4613.0,3,18,2.6,0,1,0.27,4.0
+CUS-90026,2026-03-05,Rawalpindi,Female,51.0,Facebook Ads,None,Cash on Delivery,Yes,Yes,1,4791.0,4964.0,0,117,0.5,0,1,0.34,3.6
+CUS-90027,2024-10-28,Hyderabad,Female,25.0,Facebook Ads,None,Card,No,No,4,4958.0,1237.0,0,43,3.1,0,0,0.14,4.0
+CUS-90028,2024-03-18,Lahore,Female,27.0,Referral,None,Easypaisa,Yes,Yes,6,8200.0,1416.0,1,29,0.6,0,0,0.33,5.0
+CUS-90029,2025-10-13,Lahore,Male,25.0,Instagram,None,Card,Yes,Yes,4,14173.0,3811.0,1,22,0.7,0,0,0.28,4.2
+CUS-90030,2024-05-04,Karachi,Male,63.0,Organic,Gold,Cash on Delivery,No,Yes,20,62633.0,3225.0,1,8,1.2,0,1,0.18,3.8
+CUS-90031,2025-05-19,Multan,Female,20.0,Google Search,Silver,Easypaisa,No,No,4,28932.0,6952.0,0,30,2.9,1,1,0.56,3.7
+CUS-90032,2026-01-15,Lahore,Female,41.0,Instagram,None,Cash on Delivery,No,No,3,14604.0,4998.0,0,43,1.8,0,0,0.35,4.3
+CUS-90033,2025-01-26,Karachi,Male,28.0,TikTok,Silver,JazzCash,Yes,No,8,17789.0,2414.0,1,15,0.9,1,1,0.18,4.0
+CUS-90034,2024-02-26,Karachi,Female,56.0,Facebook Ads,Silver,Cash on Delivery,Yes,Yes,14,101473.0,6719.0,0,76,3.1,2,0,0.2,4.0
+CUS-90035,2026-02-27,Rawalpindi,Female,63.0,Facebook Ads,Gold,Easypaisa,No,No,3,18061.0,6528.0,2,1,0.2,0,0,0.16,4.9
+CUS-90036,2025-11-16,Faisalabad,Female,59.0,Organic,None,Card,No,No,4,18052.0,4596.0,1,70,2.4,1,0,0.43,4.3
+CUS-90037,2024-09-02,Islamabad,Female,28.0,TikTok,None,Cash on Delivery,Yes,No,9,11292.0,1271.0,0,84,0.7,0,0,0.4,4.1
+CUS-90038,2026-01-16,Lahore,Male,35.0,TikTok,Gold,Cash on Delivery,No,No,8,51020.0,6254.0,10,4,1.6,0,1,0.18,3.9
+CUS-90039,2025-08-08,Lahore,Male,55.0,Instagram,None,JazzCash,Yes,Yes,8,12807.0,1562.0,0,81,1.5,1,1,0.48,4.2
+CUS-90040,2024-02-19,Hyderabad,Female,36.0,Facebook Ads,Silver,JazzCash,Yes,Yes,12,41549.0,3708.0,2,2,3.5,0,2,0.69,3.5
+CUS-90041,2024-02-23,Islamabad,Female,40.0,Referral,None,Cash on Delivery,No,Yes,9,16929.0,2068.0,1,59,0.6,1,0,0.05,5.0
+CUS-90042,2025-06-25,Faisalabad,Male,48.0,Organic,Gold,Cash on Delivery,Yes,No,8,38961.0,4992.0,2,14,0.0,0,0,0.27,4.6
+CUS-90043,2026-01-27,Karachi,Male,53.0,Organic,None,Cash on Delivery,Yes,Yes,1,2644.0,2640.0,1,142,0.8,0,0,0.15,4.8
+CUS-90044,2024-11-08,Islamabad,Male,52.0,Google Search,None,Easypaisa,Yes,Yes,5,27422.0,5028.0,0,90,0.5,0,2,0.43,4.3
+CUS-90045,2024-07-30,Multan,Male,56.0,Referral,None,Cash on Delivery,No,No,11,35476.0,3578.0,0,27,2.9,1,0,0.2,3.0
+CUS-90046,2026-02-08,Hyderabad,Male,57.0,Google Search,Gold,Cash on Delivery,No,Yes,1,678.0,728.0,0,91,1.8,0,0,0.3,4.5
+CUS-90047,2024-05-06,Islamabad,Female,29.0,Facebook Ads,None,Card,No,Yes,8,25999.0,3435.0,0,39,1.3,0,1,0.5,4.0
+CUS-90048,2025-09-08,Karachi,Female,53.0,Facebook Ads,None,Easypaisa,No,No,10,57746.0,5402.0,4,3,1.5,1,2,0.1,4.2
+CUS-90049,2025-07-24,Peshawar,Male,58.0,TikTok,None,Cash on Delivery,No,No,3,4279.0,1414.0,1,9,0.7,0,0,0.33,3.9
+CUS-90050,2024-09-06,Faisalabad,Female,49.0,Instagram,Gold,Card,No,Yes,18,101751.0,5916.0,3,35,0.9,0,1,0.51,3.7
+CUS-90051,2024-11-08,Multan,Male,28.0,Instagram,None,Card,Yes,No,6,7870.0,1381.0,0,9,0.8,0,0,0.34,5.0
+CUS-90052,2026-05-26,Islamabad,Male,53.0,Google Search,None,Cash on Delivery,Yes,No,1,1944.0,1974.0,0,28,2.6,0,0,0.44,4.9
+CUS-90053,2024-07-21,Faisalabad,Female,60.0,Instagram,None,Easypaisa,No,Yes,3,8433.0,2769.0,0,102,0.5,0,1,0.14,4.3
+CUS-90054,2026-02-04,Faisalabad,Male,40.0,Facebook Ads,Silver,Easypaisa,No,Yes,2,2669.0,1233.0,0,56,0.7,0,1,0.15,4.1
+CUS-90055,2024-10-27,Islamabad,Female,26.0,Referral,None,Cash on Delivery,Yes,No,6,19848.0,3242.0,0,133,0.7,0,3,0.28,3.7
+CUS-90056,2025-07-03,Multan,Male,47.0,Facebook Ads,None,Card,Yes,Yes,5,13615.0,2746.0,0,103,0.4,0,0,0.38,4.4
+CUS-90057,2024-11-18,Lahore,Male,20.0,Instagram,None,Cash on Delivery,Yes,Yes,9,30217.0,3307.0,1,14,1.1,1,0,0.36,4.0
+CUS-90058,2024-06-14,Islamabad,Male,25.0,Facebook Ads,None,Cash on Delivery,No,No,7,45225.0,6026.0,0,39,4.2,0,1,0.11,3.6
+CUS-90059,2026-05-26,Faisalabad,Female,50.0,Instagram,None,JazzCash,Yes,No,2,5966.0,2715.0,1,3,1.1,1,1,0.38,4.2
+CUS-90060,2024-08-27,Lahore,Male,46.0,TikTok,None,Cash on Delivery,Yes,No,6,9894.0,1637.0,2,32,1.6,0,1,0.05,4.1
+CUS-90061,2025-01-08,Karachi,Female,27.0,Google Search,None,Cash on Delivery,No,No,7,23450.0,3072.0,0,5,1.1,0,0,0.3,3.7
+CUS-90062,2024-05-20,Karachi,Male,61.0,Facebook Ads,None,Cash on Delivery,No,Yes,5,12429.0,2293.0,0,91,0.7,0,1,0.35,3.9
+CUS-90063,2024-07-11,Islamabad,Female,55.0,Instagram,Silver,Easypaisa,Yes,No,12,31587.0,2526.0,2,19,0.2,3,0,0.11,4.5
+CUS-90064,2024-10-15,Karachi,Female,53.0,Google Search,Gold,Easypaisa,No,No,14,83778.0,6164.0,0,98,2.9,4,0,0.25,3.9
+CUS-90065,2026-03-09,Karachi,Female,39.0,Referral,Silver,Card,Yes,Yes,1,6981.0,6881.0,0,21,3.9,0,0,0.23,4.0
+CUS-90066,2024-11-12,Peshawar,Male,26.0,Facebook Ads,None,Easypaisa,Yes,No,7,46890.0,6307.0,1,83,2.7,1,2,0.2,3.5
+CUS-90067,2025-05-18,Multan,Female,23.0,Referral,Gold,Easypaisa,Yes,Yes,5,11991.0,2391.0,0,28,1.1,0,1,0.08,4.1
+CUS-90068,2026-04-19,Lahore,Male,47.0,Facebook Ads,None,JazzCash,No,Yes,1,3894.0,3822.0,1,9,0.8,0,0,0.29,4.2
+CUS-90069,2025-08-16,Lahore,Female,56.0,Google Search,None,JazzCash,Yes,No,5,27761.0,5348.0,0,63,1.1,0,0,0.57,4.4
+CUS-90070,2026-02-13,Karachi,Female,19.0,Facebook Ads,Silver,Easypaisa,Yes,Yes,2,2906.0,1371.0,0,27,0.9,1,0,0.58,3.9
+CUS-90071,2024-05-03,Peshawar,Male,30.0,Instagram,None,Cash on Delivery,Yes,No,10,24017.0,2478.0,3,1,0.5,0,0,0.1,4.8
+CUS-90072,2026-03-13,Karachi,Female,28.0,Organic,None,Easypaisa,No,No,2,5467.0,2897.0,2,82,2.8,0,0,0.22,4.3
+CUS-90073,2024-10-15,Rawalpindi,Female,25.0,Organic,Silver,JazzCash,No,Yes,8,40849.0,5077.0,5,21,0.6,0,0,0.55,4.5
+CUS-90074,2024-02-24,Faisalabad,Female,61.0,Facebook Ads,Silver,Easypaisa,No,Yes,11,25827.0,2174.0,1,10,0.8,3,0,0.1,4.2
+CUS-90075,2024-05-11,Karachi,Female,23.0,Facebook Ads,Silver,JazzCash,No,No,7,26485.0,4113.0,0,12,0.5,1,0,0.51,4.3
+CUS-90076,2025-08-06,Lahore,Male,51.0,Organic,None,Card,Yes,No,2,6697.0,3096.0,0,1,0.9,0,1,0.31,4.2
+CUS-90077,2024-10-08,Lahore,Female,64.0,TikTok,None,Cash on Delivery,Yes,No,7,25632.0,3628.0,0,50,3.8,1,2,0.17,3.9
+CUS-90078,2025-06-25,Peshawar,Female,52.0,Organic,Silver,Cash on Delivery,No,No,6,8130.0,1496.0,1,109,1.9,0,1,0.12,4.4
+CUS-90079,2026-04-25,Faisalabad,Male,19.0,Google Search,Silver,Cash on Delivery,No,No,1,5612.0,5297.0,1,28,1.0,0,2,0.26,3.9
+CUS-90080,2025-06-10,Karachi,Male,30.0,TikTok,Silver,Easypaisa,No,No,6,9282.0,1576.0,1,71,3.9,1,1,0.5,4.2
+CUS-90081,2024-05-17,Islamabad,Female,51.0,Instagram,None,Easypaisa,Yes,No,10,5862.0,619.0,0,39,1.0,2,1,0.15,4.4
+CUS-90082,2024-03-27,Multan,Female,21.0,Instagram,None,Cash on Delivery,No,Yes,5,24185.0,4444.0,0,12,6.9,0,1,0.78,2.7
+CUS-90083,2025-01-21,Lahore,Female,64.0,Facebook Ads,Silver,Cash on Delivery,Yes,Yes,5,13769.0,2608.0,1,18,0.9,0,0,0.07,4.1
+CUS-90084,2025-06-14,Lahore,Female,37.0,Referral,Silver,Card,Yes,No,5,19458.0,4239.0,0,8,4.2,0,1,0.3,3.6
+CUS-90085,2024-09-19,Lahore,Female,29.0,Instagram,None,Cash on Delivery,Yes,No,5,9993.0,2051.0,0,115,0.3,0,0,0.09,4.5
+CUS-90086,2024-06-09,Rawalpindi,Male,62.0,Facebook Ads,Silver,JazzCash,Yes,Yes,10,29598.0,2941.0,0,51,1.0,0,0,0.26,4.6
+CUS-90087,2025-08-23,Lahore,Male,50.0,Google Search,None,Cash on Delivery,No,No,4,17440.0,4778.0,3,1,1.7,1,0,0.25,3.9
+CUS-90088,2026-03-17,Karachi,Male,21.0,Organic,None,Cash on Delivery,Yes,Yes,1,943.0,1032.0,1,84,4.2,0,2,0.08,3.2
+CUS-90089,2024-01-30,Lahore,Male,62.0,Google Search,None,Cash on Delivery,Yes,No,7,11533.0,1574.0,1,24,4.4,0,0,0.41,3.5
+CUS-90090,2025-04-28,Rawalpindi,Male,49.0,Instagram,None,Cash on Delivery,Yes,No,3,8574.0,3048.0,0,11,1.9,1,0,0.24,4.6
+CUS-90091,2024-06-01,Karachi,Male,38.0,Instagram,None,Cash on Delivery,No,No,7,13303.0,2095.0,0,48,1.5,0,0,0.3,4.6
+CUS-90092,2025-08-21,Hyderabad,Female,64.0,Facebook Ads,None,JazzCash,Yes,No,3,5372.0,1678.0,0,9,2.4,0,0,0.62,4.3
+CUS-90093,2024-05-27,Karachi,Female,52.0,Instagram,None,Cash on Delivery,No,No,6,7892.0,1432.0,0,37,0.2,0,0,0.2,4.9
+CUS-90094,2024-03-23,Lahore,Female,49.0,Instagram,Silver,Card,No,Yes,14,51711.0,3687.0,0,81,1.4,1,0,0.43,4.7
+CUS-90095,2024-09-01,Islamabad,Male,57.0,Facebook Ads,Silver,Card,Yes,No,12,41500.0,3199.0,3,63,2.2,0,0,0.39,4.2
+CUS-90096,2025-09-27,Karachi,Female,25.0,Facebook Ads,Silver,Cash on Delivery,No,Yes,4,6410.0,1504.0,5,10,5.2,1,0,0.12,4.1
+CUS-90097,2025-05-23,Peshawar,Male,50.0,TikTok,None,Cash on Delivery,No,No,5,15833.0,3042.0,0,75,4.0,0,2,0.55,3.2
+CUS-90098,2025-02-14,Islamabad,Female,34.0,Organic,Silver,Easypaisa,No,Yes,9,46070.0,4872.0,0,28,0.8,0,0,0.19,4.8
+CUS-90099,2024-10-25,Karachi,Female,38.0,Google Search,None,Cash on Delivery,Yes,Yes,5,5238.0,1003.0,2,17,0.7,1,0,0.48,5.0
+CUS-90100,2024-05-02,Lahore,Female,33.0,TikTok,Silver,Cash on Delivery,Yes,No,4,8661.0,2207.0,0,8,7.2,1,1,0.5,2.8
+CUS-90101,2024-07-02,Lahore,Female,37.0,Referral,None,Cash on Delivery,No,No,4,10526.0,2574.0,0,168,3.6,0,1,0.32,3.9
+CUS-90102,2025-07-17,Lahore,Male,25.0,Referral,Gold,Card,Yes,No,5,24311.0,5196.0,1,19,0.1,0,1,0.25,4.5
+CUS-90103,2025-01-04,Rawalpindi,Female,49.0,Organic,Gold,Cash on Delivery,No,Yes,7,23626.0,3517.0,1,43,3.8,1,1,0.15,3.3
+CUS-90104,2024-12-19,Lahore,Female,62.0,Facebook Ads,None,Cash on Delivery,Yes,No,2,5195.0,2663.0,0,69,1.6,0,0,0.37,4.4
+CUS-90105,2024-12-01,Karachi,Female,44.0,Google Search,Silver,Cash on Delivery,No,No,11,16922.0,1500.0,0,200,1.7,1,0,0.38,5.0
+CUS-90106,2024-09-13,Hyderabad,Male,34.0,Instagram,None,JazzCash,Yes,Yes,17,46209.0,2632.0,2,54,1.6,2,2,0.23,3.4
+CUS-90107,2025-05-04,Lahore,Female,63.0,Instagram,Silver,Card,Yes,No,6,21929.0,3815.0,1,60,2.9,0,0,0.49,4.5
+CUS-90108,2024-03-27,Islamabad,Male,61.0,Referral,None,Card,No,No,7,19868.0,2769.0,0,30,1.0,0,0,0.07,4.1
+CUS-90109,2025-09-27,Karachi,Male,57.0,Instagram,None,Easypaisa,Yes,No,2,3131.0,1691.0,0,263,0.8,0,0,0.51,4.4
+CUS-90110,2025-08-24,Karachi,Male,40.0,Facebook Ads,None,Cash on Delivery,Yes,No,4,8925.0,2186.0,2,14,1.0,0,0,0.33,4.8
+CUS-90111,2026-05-14,Lahore,Female,20.0,Facebook Ads,None,Cash on Delivery,Yes,No,1,2933.0,3013.0,0,47,0.7,0,1,0.59,4.1
+CUS-90112,2026-05-10,Islamabad,Female,24.0,Instagram,Gold,Cash on Delivery,Yes,No,2,9690.0,5232.0,1,51,1.2,0,0,0.11,4.6
+CUS-90113,2025-06-13,Islamabad,Male,56.0,TikTok,None,JazzCash,No,Yes,5,10744.0,2283.0,1,30,4.6,0,2,0.29,2.9
+CUS-90114,2025-06-02,Islamabad,Female,37.0,Instagram,None,Card,No,No,3,18086.0,5793.0,2,17,3.0,1,0,0.21,4.2
+CUS-90115,2024-11-29,Karachi,Female,20.0,Facebook Ads,None,Card,Yes,No,11,7048.0,627.0,2,15,1.8,2,0,0.45,4.7
+CUS-90116,2024-05-26,Karachi,Female,39.0,Organic,Silver,Cash on Delivery,No,Yes,9,44587.0,5126.0,1,1,0.3,1,1,0.25,4.3
+CUS-90117,2024-04-18,Islamabad,Male,30.0,Organic,Silver,JazzCash,No,Yes,9,31139.0,3249.0,0,16,1.4,1,0,0.09,4.4
+CUS-90118,2024-08-17,Peshawar,Male,45.0,TikTok,Silver,Easypaisa,No,No,15,102815.0,6330.0,3,5,1.0,2,1,0.2,4.1
+CUS-90119,2025-07-15,Karachi,Male,23.0,Google Search,None,Cash on Delivery,No,No,3,11505.0,3761.0,0,228,4.4,1,0,0.04,3.6
+CUS-90120,2025-11-28,Lahore,Male,25.0,Referral,Silver,Cash on Delivery,No,No,4,8339.0,1913.0,0,132,1.2,1,0,0.16,4.6
+CUS-90121,2025-05-15,Karachi,Male,21.0,Organic,None,Cash on Delivery,Yes,No,7,21741.0,3096.0,1,47,2.0,0,0,0.06,4.3
+CUS-90122,2025-06-07,Hyderabad,Female,51.0,Google Search,Gold,Cash on Delivery,No,No,4,15187.0,4041.0,0,65,1.5,0,1,0.1,3.9
+CUS-90123,2024-10-13,Faisalabad,Female,52.0,Instagram,None,Easypaisa,No,Yes,7,16506.0,2428.0,0,21,2.1,0,0,0.36,4.2
+CUS-90124,2024-11-14,Karachi,Female,27.0,Facebook Ads,Silver,Easypaisa,Yes,Yes,7,16491.0,2270.0,0,25,1.4,0,0,0.17,3.7
+CUS-90125,2025-12-03,Lahore,Male,42.0,Organic,Gold,Easypaisa,Yes,Yes,9,66001.0,7461.0,0,84,0.5,0,0,0.11,4.4
+CUS-90126,2024-01-21,Islamabad,Female,49.0,Google Search,None,Easypaisa,No,Yes,9,7928.0,928.0,0,173,4.0,0,0,0.09,4.2
+CUS-90127,2024-02-04,Karachi,Male,55.0,Facebook Ads,None,JazzCash,Yes,No,6,11121.0,1818.0,0,56,0.2,0,1,0.17,3.6
+CUS-90128,2026-02-12,Rawalpindi,Male,63.0,Facebook Ads,None,Cash on Delivery,No,No,2,3567.0,1637.0,1,53,0.6,1,1,0.44,3.6
+CUS-90129,2024-01-18,Karachi,Male,62.0,Google Search,None,Card,Yes,Yes,7,16796.0,2237.0,0,43,1.6,2,1,0.35,3.4
+CUS-90130,2024-07-04,Hyderabad,Male,40.0,Facebook Ads,None,Card,No,No,6,9002.0,1563.0,1,8,1.0,1,0,0.19,4.5
+CUS-90131,2024-01-22,Islamabad,Male,57.0,Google Search,None,Cash on Delivery,No,No,6,15157.0,2780.0,0,84,2.3,1,0,0.13,4.1
+CUS-90132,2025-01-28,Lahore,Male,48.0,Facebook Ads,None,Cash on Delivery,Yes,No,5,11140.0,2070.0,0,64,0.9,0,1,0.14,4.6
+CUS-90133,2025-07-22,Multan,Female,59.0,Facebook Ads,Silver,Card,No,No,3,22575.0,7940.0,0,110,0.2,0,0,0.05,5.0
+CUS-90134,2026-02-24,Lahore,Male,54.0,Facebook Ads,Silver,Card,No,No,2,5749.0,2849.0,2,19,0.3,0,0,0.3,3.5
+CUS-90135,2024-03-16,Multan,Female,45.0,Instagram,Gold,Card,Yes,Yes,12,41095.0,3505.0,1,15,0.1,0,0,0.23,4.7
+CUS-90136,2024-08-03,Islamabad,Female,23.0,Organic,None,Cash on Delivery,No,Yes,6,31572.0,4796.0,0,47,2.6,1,0,0.1,4.1
+CUS-90137,2026-04-18,Rawalpindi,Female,43.0,Referral,None,Cash on Delivery,No,No,1,1377.0,1382.0,0,73,1.9,1,1,0.28,3.8
+CUS-90138,2025-11-20,Karachi,Female,23.0,Organic,None,JazzCash,No,No,5,30046.0,5623.0,1,7,4.3,2,1,0.11,2.8
+CUS-90139,2024-07-13,Peshawar,Male,59.0,Google Search,None,JazzCash,No,No,8,35850.0,4950.0,2,89,2.8,0,0,0.52,3.6
+CUS-90140,2025-06-02,Lahore,Male,43.0,Instagram,Gold,JazzCash,No,No,9,21358.0,2329.0,1,29,1.3,0,1,0.21,4.7
+CUS-90141,2025-05-01,Islamabad,Female,49.0,Facebook Ads,Gold,Cash on Delivery,Yes,No,6,25114.0,3816.0,0,130,1.3,0,1,0.57,3.8
+CUS-90142,2025-11-29,Karachi,Female,41.0,Facebook Ads,None,JazzCash,No,No,2,5552.0,3030.0,0,27,1.5,0,0,0.47,3.5
+CUS-90143,2025-03-17,Karachi,Female,26.0,Facebook Ads,Silver,JazzCash,No,Yes,7,13137.0,1862.0,1,17,0.3,0,0,0.72,4.3
+CUS-90144,2026-02-14,Rawalpindi,Male,46.0,Google Search,None,Cash on Delivery,No,Yes,1,4593.0,4745.0,1,49,0.4,0,1,0.31,3.9
+CUS-90145,2024-07-15,Karachi,Female,57.0,Organic,Silver,Cash on Delivery,Yes,No,14,53748.0,3498.0,0,129,0.5,1,1,0.49,3.8
+CUS-90146,2025-12-06,Islamabad,Female,55.0,Google Search,None,JazzCash,Yes,No,3,10542.0,3243.0,3,5,1.1,0,1,0.12,4.4
+CUS-90147,2026-01-22,Karachi,Male,22.0,Organic,None,Card,No,Yes,1,4067.0,4418.0,0,87,2.4,0,1,0.1,3.9
+CUS-90148,2024-07-20,Lahore,Male,54.0,Facebook Ads,Silver,Card,No,Yes,8,9744.0,1288.0,0,119,1.0,0,1,0.25,4.1
+CUS-90149,2024-08-18,Hyderabad,Male,59.0,Organic,Silver,Cash on Delivery,No,No,6,8384.0,1321.0,0,103,0.7,0,1,0.61,5.0
+CUS-90150,2025-04-15,Rawalpindi,Female,60.0,Referral,Gold,JazzCash,No,No,2,8365.0,4637.0,0,1,2.8,0,0,0.16,4.2
+CUS-90151,2025-05-18,Karachi,Female,33.0,Instagram,None,JazzCash,Yes,No,3,7176.0,2363.0,0,281,0.5,0,0,0.18,3.8
+CUS-90152,2024-12-24,Karachi,Male,49.0,Referral,None,Cash on Delivery,Yes,No,3,6086.0,2188.0,0,42,0.8,0,0,0.15,4.8
+CUS-90153,2025-02-24,Karachi,Female,20.0,Organic,Silver,Cash on Delivery,Yes,Yes,6,9824.0,1769.0,0,56,2.6,0,1,0.5,3.4
+CUS-90154,2025-03-26,Karachi,Male,49.0,Facebook Ads,None,Easypaisa,Yes,No,11,27185.0,2653.0,2,7,5.5,0,0,0.24,3.7
+CUS-90155,2026-05-12,Karachi,Female,27.0,Google Search,None,Cash on Delivery,No,No,4,8052.0,2053.0,8,13,4.1,1,0,0.07,3.7
+CUS-90156,2024-10-22,Faisalabad,Female,41.0,Google Search,Silver,Card,Yes,No,8,29023.0,3535.0,1,62,2.5,1,0,0.33,4.4
+CUS-90157,2025-06-23,Multan,Male,21.0,Facebook Ads,Gold,Easypaisa,No,Yes,8,23934.0,3304.0,1,81,0.6,1,0,0.11,4.5
+CUS-90158,2025-06-06,Karachi,Male,31.0,Organic,None,Cash on Delivery,Yes,No,4,5657.0,1446.0,0,15,1.0,0,1,0.15,4.0
+CUS-90159,2024-01-14,Islamabad,Female,37.0,Google Search,None,JazzCash,Yes,No,8,31591.0,4326.0,1,95,1.1,0,0,0.36,4.4
+CUS-90160,2025-05-13,Karachi,Female,39.0,Instagram,None,Cash on Delivery,No,No,6,6616.0,1099.0,2,5,2.0,1,0,0.26,4.1
+CUS-90161,2025-10-06,Karachi,Male,28.0,Facebook Ads,Silver,Cash on Delivery,No,Yes,1,2187.0,2099.0,0,59,1.1,0,1,0.25,3.3
+CUS-90162,2025-06-28,Hyderabad,Female,33.0,Facebook Ads,Silver,Card,No,No,9,12154.0,1361.0,0,39,2.7,1,0,0.16,3.6
+CUS-90163,2024-04-29,Lahore,Female,31.0,Instagram,Gold,Cash on Delivery,Yes,No,9,48841.0,5579.0,0,36,0.7,1,0,0.54,4.1
+CUS-90164,2025-01-31,Lahore,Female,48.0,Referral,None,Card,Yes,Yes,3,5885.0,2080.0,0,49,4.7,0,0,0.29,3.4
+CUS-90165,2024-09-29,Lahore,Female,30.0,Facebook Ads,None,Cash on Delivery,Yes,No,6,21293.0,3884.0,0,61,3.5,0,3,0.01,3.2
+CUS-90166,2024-11-08,Karachi,Male,45.0,TikTok,None,Card,No,No,5,25805.0,4726.0,1,16,0.4,0,1,0.3,4.6
+CUS-90167,2025-09-26,Lahore,Male,29.0,Facebook Ads,None,Card,No,No,4,12691.0,2967.0,0,210,2.7,0,0,0.13,3.5
+CUS-90168,2024-03-08,Islamabad,Male,47.0,Referral,Silver,Card,Yes,No,11,48370.0,4328.0,0,66,3.2,1,4,0.29,3.2
+CUS-90169,2024-02-23,Karachi,Male,65.0,Referral,None,Cash on Delivery,No,Yes,10,41343.0,4414.0,3,35,0.3,0,1,0.08,3.9
+CUS-90170,2024-12-07,Karachi,Male,54.0,Facebook Ads,Silver,Cash on Delivery,No,No,8,20386.0,2492.0,2,74,0.5,0,0,0.01,5.0
+CUS-90171,2024-12-13,Faisalabad,Male,55.0,Referral,Silver,Cash on Delivery,No,No,5,14482.0,2711.0,1,71,0.5,0,1,0.19,4.0
+CUS-90172,2026-03-05,Karachi,Female,51.0,Organic,None,Cash on Delivery,No,No,3,8041.0,2632.0,5,5,1.1,0,1,0.41,3.8
+CUS-90173,2024-03-13,Karachi,Male,65.0,Instagram,None,Easypaisa,Yes,No,9,39065.0,3964.0,1,36,0.4,0,2,0.06,4.2
+CUS-90174,2024-07-26,Lahore,Female,18.0,Referral,None,Easypaisa,No,No,5,7976.0,1573.0,0,115,2.1,0,1,0.25,4.1
+CUS-90175,2026-02-03,Hyderabad,Male,37.0,TikTok,Silver,Cash on Delivery,Yes,No,2,4459.0,2336.0,1,65,1.5,0,1,0.23,3.9
+CUS-90176,2025-03-05,Islamabad,Female,34.0,Instagram,Silver,JazzCash,Yes,No,5,19234.0,3703.0,0,56,0.3,0,0,0.18,3.5
+CUS-90177,2024-04-02,Karachi,Female,51.0,Organic,Silver,Card,No,No,10,22849.0,2246.0,0,13,0.9,2,0,0.39,4.8
+CUS-90178,2026-01-19,Karachi,Male,63.0,Referral,Silver,JazzCash,No,No,4,8431.0,2208.0,2,1,0.5,0,1,0.13,4.4
+CUS-90179,2025-02-02,Karachi,Female,40.0,Instagram,None,Cash on Delivery,No,Yes,6,9506.0,1531.0,1,25,2.0,0,1,0.41,3.8
+CUS-90180,2024-07-05,Karachi,Male,37.0,Google Search,None,Easypaisa,Yes,Yes,8,4510.0,597.0,0,1,1.2,0,1,0.55,3.3
+CUS-90181,2025-09-19,Lahore,Male,34.0,Facebook Ads,None,Card,Yes,No,4,10203.0,2428.0,0,65,0.8,0,0,0.47,4.7
+CUS-90182,2024-10-01,Faisalabad,Female,28.0,Organic,Silver,Cash on Delivery,Yes,No,9,44231.0,4469.0,3,12,2.7,0,0,0.3,4.3
+CUS-90183,2024-10-04,Hyderabad,Female,34.0,Google Search,None,Cash on Delivery,Yes,No,8,28625.0,3426.0,0,136,1.7,0,1,0.35,4.0
+CUS-90184,2025-01-23,Rawalpindi,Male,31.0,Organic,Silver,Cash on Delivery,No,No,6,4915.0,897.0,0,22,1.8,0,1,0.38,3.9
+CUS-90185,2025-03-23,Lahore,Male,54.0,Instagram,None,Card,No,No,3,5015.0,1566.0,0,97,0.4,0,0,0.17,4.7
+CUS-90186,2024-02-06,Islamabad,Male,47.0,Instagram,None,Cash on Delivery,No,Yes,6,16792.0,2588.0,0,68,2.7,0,0,0.31,3.8
+CUS-90187,2024-07-25,Lahore,Female,19.0,Google Search,Silver,Cash on Delivery,No,Yes,9,62550.0,7645.0,0,17,5.2,2,1,0.36,2.8
+CUS-90188,2025-02-01,Karachi,Male,40.0,Organic,None,Cash on Delivery,Yes,Yes,4,15036.0,3694.0,0,36,2.8,1,0,0.48,4.0
+CUS-90189,2025-08-15,Lahore,Male,20.0,Facebook Ads,None,Card,Yes,Yes,3,9833.0,3417.0,0,17,1.9,0,1,0.34,3.7
+CUS-90190,2024-12-08,Peshawar,Female,36.0,Facebook Ads,None,Cash on Delivery,Yes,No,3,14246.0,4408.0,0,39,3.0,0,1,0.02,3.7
+CUS-90191,2024-04-19,Islamabad,Male,28.0,Referral,Gold,JazzCash,Yes,No,17,64706.0,3694.0,0,2,1.6,0,0,0.06,4.0
+CUS-90192,2026-03-11,Lahore,Male,25.0,Organic,None,JazzCash,No,No,1,2289.0,2276.0,0,96,1.0,0,1,0.02,4.4
+CUS-90193,2024-12-12,Lahore,Female,25.0,Referral,None,Cash on Delivery,No,No,5,10717.0,2063.0,0,118,1.2,0,1,0.14,4.6
+CUS-90194,2025-06-15,Multan,Male,54.0,Organic,None,JazzCash,Yes,No,6,8983.0,1371.0,1,31,1.5,0,1,0.25,3.5
+CUS-90195,2026-04-04,Hyderabad,Female,26.0,Facebook Ads,Silver,Card,No,No,2,9072.0,5026.0,0,87,3.3,0,1,0.26,3.9
+CUS-90196,2025-02-08,Lahore,Female,57.0,Instagram,None,Card,No,No,5,11459.0,2167.0,1,63,3.4,0,0,0.35,4.1
+CUS-90197,2025-03-07,Rawalpindi,Male,22.0,Google Search,Silver,Easypaisa,Yes,No,3,6556.0,2130.0,0,24,0.2,0,0,0.41,4.6
+CUS-90198,2025-05-15,Islamabad,Female,51.0,Google Search,Silver,Easypaisa,No,Yes,9,19772.0,2271.0,1,41,0.6,0,1,0.22,4.1
+CUS-90199,2024-12-09,Karachi,Female,48.0,Facebook Ads,None,Card,Yes,No,7,10194.0,1347.0,2,37,0.4,0,0,0.34,4.7
+CUS-90200,2025-02-25,Karachi,Male,40.0,Facebook Ads,None,Cash on Delivery,Yes,Yes,2,7635.0,3622.0,0,10,0.5,0,0,0.35,4.1
+CUS-90201,2026-01-31,Karachi,Male,56.0,Google Search,None,Card,No,No,1,2593.0,2819.0,0,54,2.7,0,1,0.2,4.8
+CUS-90202,2025-07-21,Lahore,Male,37.0,Instagram,None,Cash on Delivery,No,No,3,6980.0,2218.0,0,89,1.3,0,0,0.09,4.1
+CUS-90203,2026-04-24,Lahore,Male,35.0,Google Search,None,Cash on Delivery,No,No,2,8371.0,4483.0,2,46,1.5,0,1,0.2,3.3
+CUS-90204,2026-01-30,Islamabad,Male,54.0,Facebook Ads,Silver,Cash on Delivery,No,Yes,1,2429.0,2404.0,1,70,0.1,0,0,0.39,4.6
+CUS-90205,2024-10-16,Karachi,Male,30.0,TikTok,Gold,JazzCash,No,No,12,79602.0,6286.0,1,103,0.3,0,0,0.32,4.2
+CUS-90206,2024-10-18,Multan,Female,59.0,Instagram,None,Card,No,Yes,6,20904.0,3202.0,1,11,0.6,1,1,0.45,4.6
+CUS-90207,2025-04-20,Islamabad,Male,58.0,Google Search,None,Card,Yes,Yes,6,35581.0,6118.0,2,14,2.1,0,0,0.38,4.0
+CUS-90208,2024-08-19,Lahore,Female,54.0,Facebook Ads,None,Easypaisa,No,No,7,9738.0,1484.0,0,45,1.8,0,0,0.17,5.0
+CUS-90209,2025-12-07,Islamabad,Female,63.0,Instagram,Silver,Cash on Delivery,Yes,No,3,17115.0,5636.0,1,98,0.6,0,0,0.53,4.5
+CUS-90210,2024-01-28,Islamabad,Female,33.0,Google Search,None,JazzCash,Yes,Yes,6,26095.0,4802.0,1,32,2.0,0,0,0.24,4.0
+CUS-90211,2025-12-31,Peshawar,Female,56.0,TikTok,None,Cash on Delivery,No,Yes,3,4022.0,1457.0,2,72,0.7,0,1,0.41,4.1
+CUS-90212,2026-01-20,Multan,Female,29.0,Organic,None,Cash on Delivery,No,Yes,3,9251.0,3100.0,1,47,0.3,1,0,0.37,4.3
+CUS-90213,2024-11-07,Karachi,Male,47.0,Referral,None,Cash on Delivery,Yes,Yes,5,9340.0,1699.0,0,122,3.8,0,0,0.4,3.9
+CUS-90214,2024-06-01,Lahore,Male,20.0,Organic,None,JazzCash,Yes,Yes,7,18537.0,2754.0,1,3,0.6,0,0,0.42,5.0
+CUS-90215,2025-06-11,Lahore,Female,23.0,Google Search,Silver,JazzCash,No,No,7,14306.0,1982.0,1,1,4.5,1,3,0.23,3.5
+CUS-90216,2025-03-31,Karachi,Male,24.0,Instagram,None,Cash on Delivery,Yes,Yes,4,6164.0,1446.0,1,2,0.6,0,0,0.25,5.0
+CUS-90217,2026-05-28,Peshawar,Male,59.0,Organic,Silver,Cash on Delivery,Yes,No,1,4307.0,4459.0,0,33,2.5,0,1,0.05,4.6
+CUS-90218,2024-12-02,Lahore,Female,44.0,Google Search,Silver,Cash on Delivery,Yes,Yes,8,39674.0,5350.0,2,5,1.5,1,0,0.28,4.8
+CUS-90219,2025-02-05,Karachi,Female,35.0,Facebook Ads,None,Easypaisa,Yes,Yes,5,9353.0,1868.0,0,115,2.5,2,0,0.05,4.2
+CUS-90220,2024-12-27,Lahore,Male,43.0,Facebook Ads,Silver,Cash on Delivery,No,Yes,17,49661.0,3155.0,2,1,0.9,0,0,0.06,4.0
+CUS-90221,2024-02-28,Lahore,Male,38.0,Organic,None,Cash on Delivery,No,No,7,24067.0,3383.0,2,8,2.1,1,0,0.29,4.1
+CUS-90222,2025-12-30,Hyderabad,Male,20.0,Referral,Silver,Easypaisa,No,No,3,5180.0,1688.0,0,120,10.0,0,0,0.14,2.3
+CUS-90223,2025-09-18,Islamabad,Male,27.0,TikTok,None,JazzCash,No,No,1,1179.0,1267.0,0,39,0.5,0,0,0.24,4.4
+CUS-90224,2025-02-10,Faisalabad,Male,44.0,Google Search,None,Easypaisa,Yes,Yes,5,10065.0,2188.0,2,14,1.9,1,0,0.01,4.1
+CUS-90225,2026-05-18,Karachi,Female,56.0,Organic,Silver,Easypaisa,Yes,No,3,6372.0,2205.0,1,43,2.3,0,0,0.58,4.1
+CUS-90226,2025-03-17,Lahore,Male,36.0,TikTok,Silver,Card,No,Yes,6,19686.0,3184.0,0,175,1.6,1,0,0.11,4.1
+CUS-90227,2025-08-30,Lahore,Male,49.0,Organic,None,Cash on Delivery,No,No,2,2431.0,1222.0,0,38,0.3,0,0,0.42,4.6
+CUS-90228,2026-02-06,Islamabad,Male,42.0,Referral,None,Easypaisa,No,Yes,5,9292.0,1924.0,3,39,3.0,0,0,0.2,4.3
+CUS-90229,2024-11-09,Karachi,Male,63.0,Referral,None,Card,Yes,Yes,8,20073.0,2388.0,0,80,3.0,1,0,0.23,3.7
+CUS-90230,2025-09-02,Lahore,Female,62.0,Instagram,Silver,Cash on Delivery,Yes,No,6,29634.0,4662.0,1,24,0.2,1,0,0.27,4.5
+CUS-90231,2024-06-30,Karachi,Male,36.0,Organic,None,Card,Yes,No,6,10898.0,1866.0,1,48,1.3,1,1,0.61,3.7
+CUS-90232,2025-02-24,Multan,Male,35.0,Google Search,Silver,JazzCash,Yes,No,5,16117.0,3155.0,2,31,2.5,1,1,0.39,3.6
+CUS-90233,2025-06-30,Faisalabad,Male,62.0,Google Search,None,JazzCash,Yes,No,1,1205.0,1175.0,0,6,1.4,0,0,0.05,4.6
+CUS-90234,2024-06-15,Islamabad,Male,34.0,Organic,None,Card,Yes,Yes,7,4347.0,668.0,0,7,3.3,0,0,0.4,3.4
+CUS-90235,2025-11-22,Islamabad,Female,26.0,Organic,Silver,Cash on Delivery,Yes,Yes,4,12404.0,2858.0,1,18,2.0,0,0,0.33,4.3
+CUS-90236,2026-04-19,Faisalabad,Female,58.0,TikTok,None,Easypaisa,No,Yes,1,2199.0,2306.0,2,14,0.7,0,0,0.44,4.2
+CUS-90237,2024-08-13,Hyderabad,Male,22.0,Referral,None,Cash on Delivery,Yes,No,5,9167.0,1941.0,2,39,0.6,1,0,0.21,4.6
+CUS-90238,2026-02-12,Lahore,Male,53.0,TikTok,None,Cash on Delivery,Yes,Yes,2,15399.0,7126.0,0,10,2.2,0,0,0.17,4.4
+CUS-90239,2025-08-04,Peshawar,Male,60.0,Organic,None,Cash on Delivery,No,No,2,5898.0,2685.0,0,58,1.9,0,1,0.21,3.3
+CUS-90240,2026-04-12,Karachi,Male,31.0,Google Search,Silver,Cash on Delivery,Yes,No,1,3405.0,3306.0,1,29,1.0,0,0,0.56,4.1
+CUS-90241,2024-10-06,Peshawar,Male,32.0,Google Search,None,Cash on Delivery,No,Yes,8,15993.0,1917.0,2,76,8.8,2,1,0.58,2.4
+CUS-90242,2026-02-09,Hyderabad,Female,53.0,TikTok,Gold,Easypaisa,Yes,No,3,6109.0,2189.0,2,46,0.8,0,0,0.06,4.4
+CUS-90243,2024-08-07,Rawalpindi,Male,39.0,Facebook Ads,None,JazzCash,Yes,No,8,25778.0,3209.0,0,211,1.1,0,1,0.11,4.2
+CUS-90244,2024-08-05,Hyderabad,Male,58.0,Facebook Ads,Silver,Card,No,No,10,24072.0,2300.0,0,11,4.7,1,0,0.16,3.6
+CUS-90245,2025-07-09,Karachi,Female,36.0,Facebook Ads,None,Easypaisa,Yes,No,4,16125.0,3789.0,1,69,1.7,0,2,0.39,3.6
+CUS-90246,2024-02-21,Islamabad,Male,25.0,Referral,None,Card,Yes,No,9,41340.0,4357.0,2,9,0.5,3,1,0.25,3.5
+CUS-90247,2025-06-22,Peshawar,Female,24.0,Google Search,None,Card,Yes,Yes,3,4403.0,1566.0,1,53,0.2,0,0,0.04,3.7
+CUS-90248,2025-08-06,Karachi,Male,58.0,Facebook Ads,Gold,Easypaisa,Yes,No,5,17007.0,3423.0,0,58,0.5,1,0,0.29,5.0
+CUS-90249,2026-03-17,Peshawar,Male,38.0,Instagram,None,Cash on Delivery,Yes,Yes,3,6540.0,2035.0,1,98,3.7,0,2,0.34,3.3
+CUS-90250,2024-06-22,Lahore,Female,22.0,Organic,Silver,JazzCash,No,Yes,8,10041.0,1300.0,0,50,3.2,0,0,0.32,4.2
+CUS-90251,2025-12-06,Islamabad,Male,48.0,Referral,None,Easypaisa,No,No,1,2475.0,2685.0,0,12,5.4,0,2,0.05,3.1
+CUS-90252,2024-11-07,Peshawar,Male,23.0,Facebook Ads,Silver,Card,No,No,10,38671.0,3815.0,1,28,2.5,1,0,0.56,3.7
+CUS-90253,2026-03-01,Karachi,Male,47.0,TikTok,Gold,Cash on Delivery,Yes,No,1,5593.0,5755.0,0,53,1.5,0,2,0.4,3.2
+CUS-90254,2024-02-26,Faisalabad,Female,30.0,Referral,None,Easypaisa,Yes,No,6,13236.0,2059.0,0,19,7.0,1,1,0.56,2.7
+CUS-90255,2024-08-19,Lahore,Male,65.0,Referral,None,Easypaisa,No,Yes,3,3825.0,1349.0,0,25,2.3,0,0,0.67,4.0
+CUS-90256,2025-12-26,Peshawar,Male,28.0,Instagram,None,Card,No,Yes,6,35277.0,5946.0,2,121,1.8,0,1,0.1,4.4
+CUS-90257,2024-03-17,Lahore,Male,65.0,Facebook Ads,None,Easypaisa,Yes,No,8,6834.0,836.0,0,170,0.5,0,0,0.23,4.6
+CUS-90258,2024-10-10,Islamabad,Female,41.0,Facebook Ads,None,Cash on Delivery,Yes,No,9,12330.0,1501.0,0,129,1.0,1,1,0.3,4.4
+CUS-90259,2025-01-30,Islamabad,Male,35.0,Instagram,None,Card,Yes,Yes,5,20320.0,3824.0,0,96,0.1,1,1,0.32,4.2
+CUS-90260,2025-12-15,Karachi,Female,21.0,Instagram,Silver,Easypaisa,No,No,6,9120.0,1394.0,1,93,0.6,0,0,0.13,4.5
+CUS-90261,2025-10-04,Islamabad,Female,43.0,Organic,None,Easypaisa,Yes,No,2,10570.0,5027.0,1,43,1.9,0,0,0.21,4.8
+CUS-90262,2024-11-18,Multan,Female,19.0,Facebook Ads,None,Cash on Delivery,Yes,Yes,6,14246.0,2166.0,0,29,8.3,0,1,0.09,3.2
+CUS-90263,2025-04-05,Karachi,Female,52.0,Facebook Ads,None,JazzCash,Yes,Yes,4,3310.0,864.0,0,44,0.1,0,0,0.1,4.6
+CUS-90264,2025-12-22,Hyderabad,Female,38.0,Instagram,Silver,Card,No,No,2,10039.0,4800.0,2,39,0.9,0,1,0.09,4.1
+CUS-90265,2024-10-13,Islamabad,Female,55.0,Organic,None,JazzCash,No,No,4,5595.0,1491.0,0,8,0.3,0,0,0.17,4.6
+CUS-90266,2024-03-17,Lahore,Male,63.0,Instagram,Silver,Cash on Delivery,No,No,5,48986.0,9033.0,0,96,3.3,0,0,0.09,4.3
+CUS-90267,2024-11-20,Karachi,Male,54.0,Instagram,None,Card,Yes,Yes,11,48723.0,4784.0,0,31,2.4,2,1,0.26,4.1
+CUS-90268,2024-12-27,Peshawar,Male,64.0,Instagram,Silver,Easypaisa,Yes,Yes,11,28425.0,2470.0,1,43,2.7,1,0,0.39,4.2
+CUS-90269,2025-01-05,Lahore,Female,27.0,Facebook Ads,Silver,Card,No,No,17,68550.0,3859.0,4,11,3.2,3,1,0.24,3.6
+CUS-90270,2025-12-26,Lahore,Female,29.0,Instagram,None,JazzCash,No,No,4,19397.0,5117.0,0,15,0.6,1,0,0.37,4.9
+CUS-90271,2026-05-10,Lahore,Male,42.0,Google Search,Gold,Cash on Delivery,No,No,4,6462.0,1478.0,3,11,1.1,0,1,0.53,4.6
+CUS-90272,2024-10-10,Faisalabad,Male,28.0,Organic,Silver,Cash on Delivery,No,Yes,8,22898.0,2844.0,2,33,1.8,3,1,0.53,3.7
+CUS-90273,2026-03-25,Rawalpindi,Female,21.0,Referral,None,Cash on Delivery,Yes,No,2,2384.0,1284.0,2,48,2.8,0,1,0.35,3.1
+CUS-90274,2025-03-25,Lahore,Male,51.0,Referral,None,JazzCash,Yes,Yes,4,11903.0,3117.0,0,5,2.5,0,0,0.18,4.1
+CUS-90275,2026-03-08,Peshawar,Male,54.0,Google Search,None,Cash on Delivery,No,No,4,7643.0,1857.0,2,17,3.6,1,1,0.16,3.5
+CUS-90276,2026-05-23,Hyderabad,Male,43.0,Facebook Ads,Silver,JazzCash,No,No,1,1419.0,1536.0,1,36,0.9,0,1,0.17,3.4
+CUS-90277,2025-11-02,Rawalpindi,Female,65.0,Instagram,Silver,Easypaisa,No,No,4,11564.0,3050.0,1,55,6.0,0,0,0.11,4.1
+CUS-90278,2025-06-10,Faisalabad,Male,57.0,TikTok,Silver,Easypaisa,Yes,No,3,9296.0,3093.0,1,5,0.1,0,0,0.5,4.5
+CUS-90279,2026-04-27,Karachi,Female,23.0,Organic,Silver,Card,Yes,No,3,6030.0,1839.0,0,47,2.4,0,0,0.28,5.0
+CUS-90280,2024-02-08,Faisalabad,Male,50.0,Instagram,None,Cash on Delivery,Yes,No,14,68719.0,4957.0,0,145,0.1,2,1,0.31,4.8
+CUS-90281,2026-05-03,Karachi,Female,52.0,Facebook Ads,Silver,Card,Yes,No,2,6794.0,3097.0,2,3,1.0,0,0,0.6,5.0
+CUS-90282,2025-10-17,Hyderabad,Male,29.0,Organic,None,Easypaisa,Yes,No,5,23384.0,4674.0,2,9,5.8,0,0,0.01,3.6
+CUS-90283,2024-05-24,Lahore,Female,55.0,Google Search,None,Easypaisa,No,Yes,7,23750.0,3177.0,0,36,4.5,2,0,0.5,3.6
+CUS-90284,2025-10-28,Lahore,Female,63.0,Facebook Ads,None,Cash on Delivery,No,No,8,28645.0,3632.0,1,40,2.9,0,0,0.06,4.3
+CUS-90285,2025-02-20,Lahore,Male,33.0,Facebook Ads,Gold,JazzCash,No,No,14,56982.0,4163.0,2,54,0.8,0,0,0.45,4.6
+CUS-90286,2025-10-04,Hyderabad,Male,40.0,Google Search,None,Cash on Delivery,Yes,Yes,3,11484.0,3992.0,1,10,5.5,1,0,0.38,4.0
+CUS-90287,2026-03-10,Lahore,Female,46.0,Instagram,Gold,Card,No,No,2,11350.0,5296.0,1,9,0.9,0,1,0.24,4.5
+CUS-90288,2025-02-15,Karachi,Male,62.0,Organic,None,Card,Yes,No,2,2943.0,1480.0,0,91,0.8,0,0,0.14,4.1
+CUS-90289,2024-04-14,Karachi,Female,48.0,Facebook Ads,None,Cash on Delivery,Yes,No,7,19578.0,2732.0,2,99,1.1,2,0,0.44,4.9
+CUS-90290,2024-05-22,Karachi,Female,26.0,Google Search,None,Easypaisa,Yes,Yes,5,8144.0,1679.0,0,9,4.7,0,1,0.5,3.4
+CUS-90291,2024-09-27,Faisalabad,Female,58.0,Google Search,None,Cash on Delivery,No,No,13,30679.0,2559.0,2,10,0.9,2,0,0.21,4.7
+CUS-90292,2025-10-24,Lahore,Female,53.0,Google Search,Silver,Cash on Delivery,Yes,No,3,15351.0,5002.0,0,24,1.8,0,0,0.43,3.3
+CUS-90293,2025-11-12,Islamabad,Male,33.0,Instagram,Silver,Cash on Delivery,No,No,8,17137.0,2072.0,1,62,3.5,0,1,0.12,3.5
+CUS-90294,2025-11-25,Faisalabad,Male,19.0,Instagram,None,Cash on Delivery,No,No,3,6457.0,2017.0,0,100,2.4,0,1,0.09,4.1
+CUS-90295,2025-06-09,Faisalabad,Female,55.0,Organic,None,Cash on Delivery,Yes,No,5,6312.0,1241.0,1,38,4.0,0,3,0.2,3.2
+CUS-90296,2024-02-22,Islamabad,Male,22.0,Google Search,None,Cash on Delivery,Yes,Yes,11,20695.0,1908.0,0,27,6.7,3,3,0.54,2.4
+CUS-90297,2024-11-19,Rawalpindi,Male,24.0,Referral,None,Easypaisa,No,No,3,6009.0,1912.0,1,91,2.7,0,1,0.37,3.5
+CUS-90298,2025-03-26,Multan,Male,57.0,Referral,Silver,Cash on Delivery,Yes,Yes,8,26700.0,3680.0,1,74,1.0,0,0,0.23,4.1
+CUS-90299,2025-07-29,Peshawar,Male,27.0,Google Search,Gold,Easypaisa,No,Yes,8,29565.0,4044.0,0,42,1.8,0,3,0.32,3.7
+CUS-90300,2026-04-05,Karachi,Female,33.0,Facebook Ads,Silver,JazzCash,Yes,Yes,2,6076.0,2893.0,1,4,1.0,0,0,0.22,4.4
+CUS-90301,2025-10-18,Multan,Male,61.0,Instagram,Gold,Card,No,No,4,8034.0,1960.0,0,153,2.4,2,0,0.53,4.4
+CUS-90302,2025-07-09,Lahore,Male,21.0,Facebook Ads,None,Cash on Delivery,Yes,No,1,3083.0,3137.0,0,20,1.9,0,0,0.41,3.9
+CUS-90303,2025-07-30,Karachi,Male,36.0,Google Search,Silver,Cash on Delivery,No,Yes,3,19186.0,7098.0,0,40,1.4,0,0,0.38,4.1
+CUS-90304,2025-07-23,Peshawar,Male,24.0,Referral,Silver,JazzCash,Yes,Yes,3,6088.0,2042.0,0,126,0.3,0,0,0.14,4.3
+CUS-90305,2025-08-16,Rawalpindi,Female,33.0,Facebook Ads,None,Card,Yes,Yes,1,2760.0,2824.0,0,12,3.5,1,0,0.65,3.7
+CUS-90306,2024-09-26,Faisalabad,Female,23.0,Instagram,Gold,Cash on Delivery,No,Yes,12,70962.0,5952.0,1,11,0.2,2,0,0.34,4.3
+CUS-90307,2024-02-11,Karachi,Female,18.0,Google Search,Silver,Cash on Delivery,No,No,18,22801.0,1309.0,4,5,0.4,1,1,0.54,4.2
+CUS-90308,2025-11-30,Karachi,Male,42.0,Instagram,None,Card,No,Yes,3,8555.0,2918.0,1,1,2.6,0,0,0.54,5.0
+CUS-90309,2024-10-25,Islamabad,Male,18.0,Instagram,None,Cash on Delivery,Yes,No,6,24885.0,4054.0,0,59,0.9,1,0,0.15,4.0
+CUS-90310,2025-07-22,Lahore,Female,21.0,Referral,None,Cash on Delivery,No,No,7,14659.0,2069.0,0,9,4.8,0,0,0.09,3.2
+CUS-90311,2025-06-10,Islamabad,Male,62.0,Organic,Gold,Cash on Delivery,Yes,Yes,10,44588.0,4590.0,0,103,1.1,1,1,0.16,4.1
+CUS-90312,2025-02-24,Lahore,Female,25.0,Organic,Silver,JazzCash,No,No,11,37568.0,3373.0,2,19,1.6,0,3,0.11,3.2
+CUS-90313,2025-05-21,Faisalabad,Male,43.0,Google Search,Silver,Easypaisa,No,No,6,11437.0,2085.0,4,9,0.8,0,0,0.67,3.8
+CUS-90314,2026-05-17,Rawalpindi,Female,25.0,Facebook Ads,Silver,Easypaisa,Yes,Yes,1,2810.0,2924.0,1,22,0.9,0,0,0.46,5.0
+CUS-90315,2025-10-23,Islamabad,Male,23.0,Google Search,Gold,JazzCash,Yes,Yes,9,58237.0,6491.0,3,36,1.3,2,0,0.31,4.4
+CUS-90316,2025-05-26,Karachi,Female,40.0,Instagram,None,Cash on Delivery,No,No,2,4351.0,2142.0,2,6,2.1,0,1,0.03,3.4
+CUS-90317,2024-12-19,Peshawar,Male,41.0,Facebook Ads,None,JazzCash,Yes,No,6,36069.0,5761.0,0,54,1.1,0,1,0.02,4.0
+CUS-90318,2025-10-27,Lahore,Female,43.0,TikTok,None,Card,Yes,No,4,11803.0,2799.0,1,36,2.7,0,0,0.25,4.7
+CUS-90319,2024-02-07,Faisalabad,Male,39.0,Organic,Silver,JazzCash,Yes,Yes,12,42552.0,3292.0,1,14,1.3,1,0,0.46,4.0
+CUS-90320,2024-04-25,Peshawar,Male,27.0,Referral,None,Cash on Delivery,Yes,No,9,21329.0,2209.0,1,107,0.7,0,0,0.27,4.0
+CUS-90321,2024-07-23,Islamabad,Male,64.0,Organic,Silver,Cash on Delivery,No,Yes,9,31314.0,3231.0,0,181,1.8,2,0,0.25,4.7
+CUS-90322,2024-04-28,Karachi,Male,56.0,Facebook Ads,None,Cash on Delivery,Yes,Yes,11,77660.0,6759.0,1,172,0.1,0,0,0.55,4.2
+CUS-90323,2024-05-07,Multan,Male,47.0,TikTok,Silver,Cash on Delivery,Yes,Yes,8,22744.0,3070.0,1,1,3.2,0,2,0.28,2.8
+CUS-90324,2025-09-08,Lahore,Male,50.0,Instagram,None,Cash on Delivery,Yes,No,2,6939.0,3484.0,0,11,4.3,1,0,0.24,3.6
+CUS-90325,2025-08-02,Lahore,Female,42.0,Facebook Ads,None,Card,No,No,4,51535.0,13146.0,1,25,1.2,0,3,0.21,3.2
+CUS-90326,2024-01-23,Multan,Female,20.0,Organic,Silver,Cash on Delivery,Yes,No,7,13322.0,1840.0,0,1,4.1,0,1,0.47,3.4
+CUS-90327,2025-03-16,Lahore,Female,25.0,TikTok,Gold,Cash on Delivery,No,Yes,8,17167.0,2182.0,2,55,0.4,0,0,0.4,4.1
+CUS-90328,2025-11-27,Karachi,Female,43.0,Instagram,None,JazzCash,Yes,No,2,1653.0,761.0,2,1,0.5,0,1,0.3,4.3
+CUS-90329,2025-10-02,Lahore,Female,28.0,Instagram,None,Card,No,No,3,3031.0,1080.0,0,177,2.5,0,0,0.3,4.2
+CUS-90330,2026-02-15,Rawalpindi,Male,50.0,Referral,None,Cash on Delivery,Yes,No,3,4038.0,1431.0,3,18,1.0,0,1,0.23,4.2
+CUS-90331,2024-09-14,Karachi,Female,36.0,Facebook Ads,Silver,Card,Yes,No,14,43358.0,3104.0,1,20,2.0,0,0,0.54,4.5
+CUS-90332,2025-06-26,Karachi,Female,37.0,Facebook Ads,None,Cash on Delivery,No,No,5,11638.0,2123.0,0,78,3.2,1,1,0.42,4.2
+CUS-90333,2025-12-30,Karachi,Female,20.0,Instagram,None,Cash on Delivery,No,No,1,931.0,958.0,0,22,0.4,0,0,0.57,4.4
+CUS-90334,2026-05-09,Islamabad,Female,41.0,Instagram,None,Cash on Delivery,Yes,Yes,2,785.0,391.0,2,52,0.9,0,1,0.28,4.2
+CUS-90335,2024-11-28,Multan,Female,40.0,Facebook Ads,None,Cash on Delivery,No,No,3,2342.0,780.0,1,27,0.8,0,0,0.18,5.0
+CUS-90336,2025-09-17,Karachi,Female,28.0,Facebook Ads,None,Cash on Delivery,No,No,4,10553.0,2420.0,1,36,6.1,0,3,0.09,3.1
+CUS-90337,2024-11-10,Lahore,Female,63.0,Instagram,Silver,JazzCash,No,No,11,32621.0,3249.0,0,47,1.2,3,0,0.26,5.0
+CUS-90338,2025-12-10,Hyderabad,Male,35.0,Facebook Ads,None,Cash on Delivery,Yes,No,3,10573.0,3259.0,0,94,0.7,0,1,0.15,3.8
+CUS-90339,2024-07-08,Karachi,Male,53.0,Facebook Ads,Silver,Cash on Delivery,No,No,20,53892.0,2519.0,5,93,8.3,2,3,0.53,1.8
+CUS-90340,2024-12-23,Islamabad,Male,61.0,Facebook Ads,Silver,Card,No,No,3,11158.0,3383.0,0,15,1.8,0,0,0.13,4.2
+CUS-90341,2024-07-13,Faisalabad,Female,43.0,Referral,Gold,Cash on Delivery,No,No,15,32311.0,2167.0,1,8,1.1,3,0,0.03,4.2
+CUS-90342,2026-05-10,Karachi,Male,60.0,Google Search,None,JazzCash,Yes,Yes,2,2652.0,1206.0,2,51,2.5,0,1,0.39,4.4
+CUS-90343,2024-09-08,Islamabad,Female,30.0,Referral,None,Card,Yes,No,5,22094.0,4443.0,2,18,3.8,0,0,0.2,4.3
+CUS-90344,2025-07-18,Multan,Male,54.0,Organic,None,Card,No,Yes,4,10000.0,2515.0,0,159,2.8,0,2,0.27,3.5
+CUS-90345,2024-11-04,Karachi,Female,45.0,Google Search,Silver,Card,No,No,7,23357.0,3514.0,2,9,0.8,0,0,0.34,4.3
+CUS-90346,2024-10-10,Lahore,Male,21.0,Facebook Ads,None,Cash on Delivery,No,Yes,3,4544.0,1389.0,0,5,2.5,0,2,0.42,3.6
+CUS-90347,2026-02-16,Lahore,Male,25.0,Google Search,Silver,JazzCash,No,No,3,9647.0,3370.0,2,14,0.4,0,0,0.06,4.1
+CUS-90348,2024-06-02,Lahore,Female,53.0,Facebook Ads,None,Cash on Delivery,No,Yes,4,7721.0,1856.0,0,103,3.7,0,1,0.27,3.7
+CUS-90349,2024-10-29,Multan,Female,62.0,Facebook Ads,Silver,Card,Yes,No,6,5650.0,1018.0,0,90,1.2,0,0,0.31,4.1
+CUS-90350,2025-11-15,Karachi,Female,49.0,Instagram,Silver,Cash on Delivery,Yes,No,4,36898.0,8552.0,1,33,0.1,0,1,0.37,4.5
+CUS-90351,2024-03-12,Multan,Male,36.0,Instagram,Silver,Card,No,No,8,21884.0,2954.0,0,235,0.7,0,1,0.3,4.1
+CUS-90352,2026-05-01,Multan,Female,41.0,Instagram,None,Cash on Delivery,Yes,No,1,3015.0,3155.0,3,4,0.9,0,0,0.46,4.2
+CUS-90353,2024-03-26,Islamabad,Male,61.0,Instagram,None,Easypaisa,Yes,Yes,9,29582.0,3404.0,1,53,2.4,1,0,0.32,4.0
+CUS-90354,2024-04-22,Islamabad,Female,27.0,Instagram,Silver,JazzCash,Yes,No,11,32132.0,2967.0,0,116,2.7,2,0,0.25,4.7
+CUS-90355,2025-02-23,Islamabad,Male,44.0,Google Search,Silver,Easypaisa,No,No,11,42686.0,4141.0,0,30,1.8,0,0,0.33,4.3
+CUS-90356,2026-05-28,Karachi,Male,61.0,Google Search,None,Cash on Delivery,No,No,1,1076.0,1126.0,1,33,2.2,0,0,0.51,4.5
+CUS-90357,2025-11-14,Karachi,Female,56.0,TikTok,Silver,Cash on Delivery,No,No,5,15570.0,3367.0,0,45,0.5,0,0,0.28,4.9
+CUS-90358,2025-05-31,Islamabad,Male,47.0,Google Search,None,Cash on Delivery,No,No,1,2421.0,2212.0,0,22,2.7,0,1,0.37,3.6
+CUS-90359,2024-04-02,Faisalabad,Male,54.0,Facebook Ads,None,Card,No,No,13,25976.0,1898.0,1,62,1.2,0,1,0.24,4.4
+CUS-90360,2025-07-04,Peshawar,Female,33.0,Referral,None,Card,Yes,No,3,2857.0,929.0,0,110,0.1,0,1,0.3,4.6
+CUS-90361,2025-10-04,Karachi,Female,55.0,TikTok,Silver,JazzCash,Yes,No,1,2375.0,2188.0,0,7,0.7,0,0,0.25,4.5
+CUS-90362,2025-03-22,Lahore,Female,22.0,TikTok,Silver,Cash on Delivery,Yes,No,8,40159.0,5428.0,0,129,0.6,1,1,0.31,4.2
+CUS-90363,2025-11-23,Islamabad,Female,20.0,Referral,Silver,Easypaisa,Yes,No,4,2906.0,714.0,1,44,1.2,0,3,0.22,4.0
+CUS-90364,2025-04-28,Lahore,Male,32.0,Facebook Ads,None,Cash on Delivery,Yes,Yes,3,10738.0,3429.0,1,22,0.1,1,0,0.75,4.9
+CUS-90365,2024-01-18,Karachi,Female,21.0,Instagram,Silver,Cash on Delivery,Yes,No,10,99242.0,9328.0,0,49,1.1,1,0,0.15,4.1
+CUS-90366,2024-09-25,Peshawar,Female,46.0,Instagram,Gold,Cash on Delivery,No,No,10,28728.0,2768.0,0,148,3.7,0,2,0.15,3.2
+CUS-90367,2025-03-07,Karachi,Male,48.0,Organic,None,Cash on Delivery,No,Yes,8,23094.0,2706.0,0,169,0.7,1,0,0.11,3.8
+CUS-90368,2026-03-02,Multan,Female,55.0,Google Search,Silver,Card,Yes,No,2,8802.0,4242.0,0,120,2.2,0,1,0.15,3.5
+CUS-90369,2026-05-23,Peshawar,Female,31.0,Organic,Silver,Cash on Delivery,No,Yes,1,2378.0,2230.0,0,38,2.1,0,0,0.47,4.4
+CUS-90370,2024-02-20,Rawalpindi,Female,31.0,Facebook Ads,None,Easypaisa,Yes,No,4,13307.0,3356.0,0,41,2.6,0,1,0.23,3.7
+CUS-90371,2024-07-28,Lahore,Female,61.0,TikTok,Gold,Cash on Delivery,No,No,13,28537.0,2156.0,1,65,1.2,3,1,0.08,3.8
+CUS-90372,2024-07-22,Peshawar,Female,28.0,Instagram,None,Cash on Delivery,No,No,11,51909.0,4416.0,1,113,0.3,1,0,0.59,4.5
+CUS-90373,2025-11-04,Lahore,Male,34.0,Instagram,Silver,Cash on Delivery,Yes,No,4,10611.0,2823.0,4,20,0.3,0,0,0.36,4.4
+CUS-90374,2024-12-28,Karachi,Male,50.0,Facebook Ads,None,Easypaisa,No,Yes,5,11993.0,2214.0,1,3,1.5,0,1,0.25,4.1
+CUS-90375,2026-01-30,Karachi,Female,53.0,Google Search,Silver,Cash on Delivery,Yes,No,2,7201.0,3757.0,2,4,2.1,0,0,0.42,4.3
+CUS-90376,2024-04-06,Lahore,Female,52.0,Google Search,Silver,Cash on Delivery,Yes,No,10,39894.0,3677.0,0,78,1.4,0,1,0.5,3.7
+CUS-90377,2026-05-08,Peshawar,Female,32.0,Facebook Ads,Silver,Card,No,Yes,2,5493.0,2545.0,3,53,2.8,0,2,0.26,3.9
+CUS-90378,2025-11-26,Islamabad,Male,56.0,TikTok,None,Cash on Delivery,No,No,6,23783.0,4193.0,4,5,1.6,1,0,0.33,4.4
+CUS-90379,2026-04-01,Karachi,Female,53.0,Facebook Ads,None,JazzCash,No,No,2,1950.0,993.0,1,90,1.5,0,0,0.28,4.9
+CUS-90380,2025-04-16,Lahore,Male,63.0,Referral,None,JazzCash,Yes,Yes,2,11618.0,5442.0,0,1,3.0,0,1,0.26,4.2
+CUS-90381,2024-10-06,Karachi,Female,24.0,Facebook Ads,None,Card,No,No,6,22256.0,3431.0,0,42,1.1,0,0,0.53,4.6
+CUS-90382,2025-01-27,Karachi,Male,52.0,TikTok,None,Card,No,Yes,6,20826.0,3668.0,0,114,2.7,1,0,0.14,4.6
+CUS-90383,2025-09-29,Islamabad,Male,18.0,Instagram,None,JazzCash,Yes,No,3,13126.0,3997.0,1,32,0.8,1,0,0.57,3.8
+CUS-90384,2024-03-14,Karachi,Male,51.0,Referral,None,Cash on Delivery,Yes,No,8,20642.0,2447.0,0,31,2.7,0,1,0.16,3.4
+CUS-90385,2026-04-01,Rawalpindi,Male,63.0,Facebook Ads,None,Easypaisa,No,No,4,3132.0,759.0,4,16,2.8,1,1,0.53,3.9
+CUS-90386,2025-02-17,Karachi,Male,53.0,Organic,None,Cash on Delivery,Yes,No,3,8417.0,2619.0,0,79,1.6,0,1,0.41,3.9
+CUS-90387,2025-12-12,Lahore,Male,23.0,Google Search,Silver,JazzCash,No,Yes,2,4688.0,2574.0,0,74,0.1,0,0,0.62,5.0
+CUS-90388,2024-08-27,Karachi,Male,36.0,Organic,Gold,JazzCash,No,No,11,25725.0,2179.0,0,47,1.5,1,1,0.35,3.7
+CUS-90389,2024-03-10,Islamabad,Male,40.0,Organic,Gold,Easypaisa,No,No,13,115990.0,8633.0,0,58,2.3,1,0,0.09,4.1
+CUS-90390,2025-11-28,Islamabad,Male,62.0,Instagram,None,Card,Yes,Yes,3,6516.0,2090.0,1,62,0.5,0,0,0.06,4.3
+CUS-90391,2024-08-13,Faisalabad,Female,57.0,Instagram,Gold,JazzCash,Yes,No,8,21187.0,2814.0,1,157,3.4,2,4,0.65,3.2
+CUS-90392,2024-01-28,Hyderabad,Male,45.0,Organic,Silver,Easypaisa,No,No,6,18581.0,3010.0,0,120,3.8,0,0,0.41,4.0
+CUS-90393,2024-05-22,Rawalpindi,Male,21.0,TikTok,None,Cash on Delivery,No,Yes,9,9637.0,1043.0,2,10,0.6,1,1,0.09,5.0
+CUS-90394,2026-02-18,Faisalabad,Male,47.0,Instagram,None,Cash on Delivery,No,No,3,9977.0,3556.0,0,72,0.9,0,0,0.14,4.1
+CUS-90395,2025-05-16,Lahore,Female,36.0,Instagram,Silver,Card,No,No,9,48700.0,5631.0,1,18,2.3,2,0,0.19,3.9
+CUS-90396,2024-11-27,Rawalpindi,Male,39.0,TikTok,None,Cash on Delivery,Yes,No,7,22433.0,2927.0,1,29,0.9,1,1,0.29,4.3
+CUS-90397,2025-02-03,Peshawar,Female,33.0,Facebook Ads,None,Cash on Delivery,Yes,No,3,10580.0,3370.0,0,3,1.3,1,1,0.13,4.4
+CUS-90398,2026-02-20,Karachi,Female,51.0,Referral,None,Easypaisa,Yes,No,3,13455.0,4251.0,2,4,0.3,1,1,0.23,4.6
+CUS-90399,2024-02-14,Rawalpindi,Female,55.0,Organic,None,Cash on Delivery,Yes,No,8,14973.0,1710.0,0,9,0.6,2,0,0.47,4.4
+CUS-90400,2024-10-16,Rawalpindi,Male,22.0,Organic,None,Card,No,No,4,13375.0,3609.0,0,22,3.0,0,1,0.1,3.3
+CUS-90401,2024-06-20,Lahore,Male,65.0,Organic,None,JazzCash,Yes,Yes,7,22251.0,3106.0,0,38,0.7,0,0,0.24,4.7
+CUS-90402,2025-09-09,Karachi,Female,25.0,TikTok,None,Cash on Delivery,No,No,1,1450.0,1476.0,0,75,1.2,0,1,0.23,4.8
+CUS-90403,2024-11-19,Lahore,Male,30.0,Organic,None,Easypaisa,No,No,4,12341.0,2982.0,1,116,1.3,0,0,0.43,4.3
+CUS-90404,2025-03-13,Karachi,Female,25.0,TikTok,None,JazzCash,No,Yes,5,11709.0,2196.0,0,2,4.9,0,3,0.41,3.3
+CUS-90405,2025-12-15,Lahore,Male,34.0,Instagram,None,Card,No,No,1,626.0,677.0,1,97,1.2,0,0,0.22,4.8
+CUS-90406,2024-03-03,Lahore,Male,26.0,TikTok,None,JazzCash,Yes,No,7,11326.0,1695.0,0,5,0.7,0,0,0.16,4.8
+CUS-90407,2024-06-23,Rawalpindi,Male,32.0,Google Search,None,Cash on Delivery,Yes,Yes,9,28502.0,3186.0,0,46,3.1,0,1,0.49,3.6
+CUS-90408,2025-03-05,Karachi,Male,53.0,Instagram,None,Card,Yes,No,5,14881.0,3189.0,0,88,0.5,0,0,0.27,4.5
+CUS-90409,2024-11-01,Multan,Female,62.0,Organic,Silver,Easypaisa,Yes,No,12,33592.0,2995.0,0,74,0.7,1,0,0.52,3.9
+CUS-90410,2026-02-28,Karachi,Male,41.0,Organic,Gold,Easypaisa,Yes,Yes,2,4051.0,2240.0,0,4,3.0,1,1,0.2,4.0
+CUS-90411,2024-12-18,Faisalabad,Male,35.0,Facebook Ads,None,Easypaisa,No,No,2,3367.0,1765.0,0,309,1.5,0,2,0.35,4.3
+CUS-90412,2025-06-11,Faisalabad,Male,59.0,Referral,Silver,Card,No,No,10,32061.0,3537.0,1,52,1.9,0,0,0.34,3.7
+CUS-90413,2025-05-30,Lahore,Male,38.0,Facebook Ads,None,Cash on Delivery,No,No,1,2049.0,2218.0,0,162,11.3,0,1,0.15,2.6
+CUS-90414,2024-07-07,Lahore,Male,49.0,TikTok,Gold,Cash on Delivery,Yes,No,15,66828.0,4367.0,3,68,1.4,4,0,0.4,3.7
+CUS-90415,2025-06-22,Karachi,Male,58.0,Google Search,Silver,Card,Yes,Yes,9,28982.0,3517.0,0,24,4.7,1,2,0.19,3.4
+CUS-90416,2025-09-17,Karachi,Female,39.0,Google Search,Silver,Cash on Delivery,Yes,No,4,8265.0,2100.0,0,2,2.9,1,0,0.37,3.9
+CUS-90417,2025-08-24,Karachi,Male,40.0,Google Search,Gold,Cash on Delivery,No,No,8,7389.0,899.0,1,33,1.0,1,2,0.02,3.8
+CUS-90418,2024-04-06,Islamabad,Female,34.0,TikTok,Silver,JazzCash,Yes,Yes,13,16272.0,1274.0,0,174,1.9,0,0,0.31,4.1
+CUS-90419,2024-04-15,Lahore,Male,28.0,Instagram,Silver,JazzCash,Yes,No,10,5623.0,601.0,3,3,1.0,3,1,0.25,4.1
+CUS-90420,2024-03-26,Karachi,Male,56.0,Instagram,Gold,Cash on Delivery,No,No,16,67175.0,4198.0,0,76,0.9,0,0,0.18,4.9
+CUS-90421,2025-10-04,Karachi,Female,51.0,Google Search,Silver,Cash on Delivery,No,No,5,30076.0,5750.0,0,15,2.6,0,0,0.15,4.0
+CUS-90422,2025-05-13,Lahore,Female,18.0,Google Search,None,Card,No,Yes,5,24424.0,4709.0,1,2,1.2,1,1,0.33,4.2
+CUS-90423,2025-08-16,Karachi,Female,35.0,Organic,None,Cash on Delivery,No,No,1,3231.0,3406.0,0,43,1.2,0,0,0.12,4.7
+CUS-90424,2025-10-07,Lahore,Male,41.0,Google Search,None,Cash on Delivery,Yes,Yes,1,1540.0,1450.0,0,24,0.1,0,2,0.26,4.1
+CUS-90425,2025-10-24,Peshawar,Male,25.0,Instagram,Silver,Easypaisa,No,No,1,3158.0,2904.0,0,35,1.2,0,2,0.27,3.5
+CUS-90426,2024-09-11,Islamabad,Male,65.0,Facebook Ads,None,Card,Yes,Yes,1,2653.0,2749.0,1,57,0.4,0,0,0.12,4.4
+CUS-90427,2025-09-24,Hyderabad,Female,19.0,Organic,Silver,Easypaisa,Yes,Yes,3,11449.0,3640.0,0,47,2.6,0,0,0.33,4.0
+CUS-90428,2025-11-23,Multan,Female,28.0,TikTok,Silver,Cash on Delivery,Yes,Yes,6,46142.0,7000.0,1,29,4.1,0,1,0.11,2.5
+CUS-90429,2025-01-16,Karachi,Female,29.0,Google Search,Silver,Cash on Delivery,No,Yes,10,28761.0,2857.0,2,3,0.3,1,0,0.43,4.8
+CUS-90430,2024-07-16,Karachi,Male,32.0,Google Search,None,Cash on Delivery,Yes,Yes,11,27492.0,2439.0,1,3,0.5,0,0,0.55,5.0
+CUS-90431,2025-05-03,Karachi,Female,49.0,Google Search,None,Cash on Delivery,No,No,7,19739.0,3111.0,0,20,0.2,0,0,0.26,4.8
+CUS-90432,2024-02-08,Rawalpindi,Male,25.0,Google Search,Gold,JazzCash,Yes,No,12,48371.0,4276.0,1,27,0.6,3,1,0.55,4.6
+CUS-90433,2025-12-11,Islamabad,Male,64.0,Instagram,Silver,Cash on Delivery,No,No,1,1850.0,1927.0,4,34,7.2,0,0,0.04,3.3
+CUS-90434,2025-01-19,Islamabad,Male,65.0,Instagram,Silver,Cash on Delivery,No,Yes,7,7255.0,1054.0,1,26,1.7,2,0,0.38,4.4
+CUS-90435,2024-03-22,Karachi,Male,22.0,Facebook Ads,None,Easypaisa,No,No,8,10497.0,1445.0,1,1,1.9,0,0,0.24,4.6
+CUS-90436,2025-09-06,Lahore,Female,33.0,Google Search,None,Cash on Delivery,No,Yes,4,16180.0,4295.0,0,53,2.0,0,0,0.21,4.4
+CUS-90437,2025-10-07,Karachi,Male,35.0,Organic,None,JazzCash,No,No,3,8815.0,2720.0,2,35,0.7,0,0,0.04,5.0
+CUS-90438,2024-10-09,Multan,Male,28.0,Google Search,Gold,Cash on Delivery,No,Yes,15,56783.0,3740.0,0,173,0.7,2,2,0.11,4.2
+CUS-90439,2026-05-15,Karachi,Male,32.0,Organic,Silver,JazzCash,Yes,No,1,1790.0,1956.0,1,2,0.3,0,0,0.5,4.0
+CUS-90440,2025-03-04,Islamabad,Male,34.0,Google Search,Silver,JazzCash,Yes,No,9,62145.0,7155.0,1,103,0.7,1,0,0.3,3.7
+CUS-90441,2024-09-15,Karachi,Male,49.0,Facebook Ads,None,JazzCash,No,No,6,2926.0,522.0,2,1,1.3,0,0,0.43,4.2
+CUS-90442,2025-01-13,Lahore,Female,64.0,TikTok,None,Cash on Delivery,No,No,4,13922.0,3197.0,0,35,0.1,0,0,0.25,4.5
+CUS-90443,2024-03-03,Hyderabad,Male,31.0,Referral,Silver,Card,Yes,No,9,6103.0,629.0,1,42,2.3,0,0,0.35,4.3
+CUS-90444,2025-12-06,Multan,Male,20.0,Instagram,None,Cash on Delivery,No,Yes,4,8623.0,2176.0,1,89,1.6,1,0,0.28,4.8
+CUS-90445,2026-05-14,Lahore,Female,59.0,Google Search,None,Card,No,Yes,1,2451.0,2250.0,0,47,4.2,0,2,0.46,3.8
+CUS-90446,2024-03-01,Lahore,Male,64.0,Referral,None,Cash on Delivery,No,No,8,27962.0,3459.0,1,73,1.5,2,0,0.68,4.6
+CUS-90447,2025-06-07,Karachi,Female,21.0,Organic,None,Cash on Delivery,No,No,3,8619.0,3158.0,0,81,2.4,0,2,0.03,3.3
+CUS-90448,2024-09-07,Lahore,Male,33.0,Referral,None,Easypaisa,No,No,8,15999.0,1959.0,0,2,1.5,0,0,0.24,4.7
+CUS-90449,2025-08-07,Lahore,Male,33.0,Facebook Ads,None,Card,No,No,5,31000.0,5849.0,0,34,0.8,0,1,0.63,4.5
+CUS-90450,2025-05-03,Faisalabad,Male,50.0,Instagram,None,Card,Yes,Yes,8,57359.0,7314.0,2,12,0.6,1,1,0.23,3.9
+CUS-90451,2024-07-16,Karachi,Female,57.0,Instagram,Silver,Cash on Delivery,Yes,No,4,3021.0,701.0,0,91,0.7,1,0,0.38,4.3
+CUS-90452,2025-10-20,Karachi,Male,43.0,Google Search,Gold,Cash on Delivery,Yes,Yes,4,14944.0,3856.0,1,95,1.9,1,0,0.2,3.7
+CUS-90453,2024-11-01,Lahore,Male,63.0,Instagram,None,JazzCash,Yes,No,8,18002.0,2135.0,1,20,2.7,1,0,0.49,4.4
+CUS-90454,2024-04-09,Lahore,Female,50.0,Facebook Ads,Silver,Card,No,No,10,18449.0,1785.0,1,42,3.2,1,1,0.31,3.8
+CUS-90455,2025-02-06,Karachi,Female,52.0,TikTok,None,JazzCash,Yes,No,6,9134.0,1542.0,1,101,1.2,0,0,0.19,4.2
+CUS-90456,2025-07-04,Lahore,Female,42.0,Google Search,None,JazzCash,Yes,No,5,13297.0,2635.0,0,116,0.6,1,0,0.07,4.2
+CUS-90457,2025-04-02,Rawalpindi,Female,44.0,Instagram,None,Cash on Delivery,No,No,8,14591.0,1746.0,2,1,2.2,0,4,0.2,3.4
+CUS-90458,2026-05-31,Faisalabad,Male,39.0,TikTok,None,Cash on Delivery,Yes,No,1,4875.0,5105.0,2,30,1.5,0,0,0.36,4.7
+CUS-90459,2026-05-02,Peshawar,Female,48.0,Organic,None,Cash on Delivery,No,No,1,1254.0,1151.0,0,8,1.1,0,0,0.13,4.7
+CUS-90460,2024-02-04,Lahore,Female,55.0,Instagram,None,Card,No,No,13,18434.0,1323.0,1,80,1.5,0,0,0.14,4.5
+CUS-90461,2025-10-08,Multan,Male,56.0,Facebook Ads,Silver,Cash on Delivery,No,No,3,3930.0,1441.0,1,111,2.7,0,1,0.31,4.0
+CUS-90462,2025-01-01,Lahore,Female,38.0,Instagram,None,JazzCash,Yes,No,5,9796.0,1930.0,0,189,1.4,0,0,0.32,4.0
+CUS-90463,2026-03-27,Karachi,Male,54.0,TikTok,Silver,Cash on Delivery,Yes,No,1,5468.0,5187.0,0,64,0.7,0,1,0.23,4.0
+CUS-90464,2025-08-31,Faisalabad,Female,44.0,TikTok,None,Cash on Delivery,No,No,5,16776.0,3197.0,1,27,0.0,0,1,0.41,4.4
+CUS-90465,2025-07-15,Lahore,Male,37.0,Facebook Ads,Silver,Cash on Delivery,No,No,5,29665.0,5900.0,1,8,0.8,0,0,0.19,4.4
+CUS-90466,2025-12-21,Lahore,Male,64.0,Instagram,None,Card,No,Yes,2,2926.0,1622.0,0,62,1.7,0,1,0.09,4.0
+CUS-90467,2024-03-09,Karachi,Male,18.0,TikTok,Silver,Cash on Delivery,Yes,Yes,11,33327.0,2800.0,0,63,2.0,0,1,0.18,4.2
+CUS-90468,2024-02-07,Islamabad,Male,27.0,TikTok,Silver,Easypaisa,No,No,17,47278.0,2927.0,3,5,1.2,1,0,0.1,4.3
+CUS-90469,2026-02-20,Lahore,Male,52.0,Instagram,None,Card,No,No,1,5637.0,5741.0,0,130,4.0,0,0,0.08,4.0
+CUS-90470,2024-02-27,Karachi,Female,31.0,Instagram,Gold,JazzCash,No,No,18,65011.0,3724.0,1,7,0.5,3,0,0.32,4.6
+CUS-90471,2026-03-12,Karachi,Male,29.0,Instagram,Silver,JazzCash,Yes,No,1,2604.0,2728.0,0,13,2.9,0,3,0.36,3.4
+CUS-90472,2025-11-09,Peshawar,Female,30.0,Organic,Gold,Cash on Delivery,No,Yes,5,8488.0,1767.0,2,21,0.3,0,0,0.01,4.5
+CUS-90473,2025-11-21,Lahore,Male,37.0,Facebook Ads,Silver,Cash on Delivery,No,Yes,3,5669.0,1790.0,1,65,4.6,0,0,0.15,4.5
+CUS-90474,2025-05-13,Karachi,Male,44.0,Referral,Gold,Easypaisa,No,Yes,7,9402.0,1310.0,1,50,0.4,2,0,0.06,4.2
+CUS-90475,2025-11-03,Lahore,Female,40.0,Instagram,None,JazzCash,Yes,Yes,1,1261.0,1199.0,0,88,0.2,0,0,0.23,4.6
+CUS-90476,2025-01-12,Multan,Female,43.0,TikTok,None,Card,No,No,2,2043.0,996.0,0,68,1.8,0,0,0.16,3.8
+CUS-90477,2026-03-20,Lahore,Male,34.0,Facebook Ads,Gold,Easypaisa,No,Yes,4,7478.0,1889.0,2,70,1.7,1,2,0.29,4.1
+CUS-90478,2024-04-04,Lahore,Male,40.0,Organic,Silver,Card,Yes,Yes,8,45393.0,5264.0,1,148,2.1,3,0,0.05,4.9
+CUS-90479,2024-07-20,Karachi,Male,45.0,Facebook Ads,None,JazzCash,Yes,Yes,5,22899.0,4480.0,0,21,2.6,0,0,0.08,4.4
+CUS-90480,2024-04-09,Islamabad,Female,26.0,Facebook Ads,None,Easypaisa,No,Yes,14,32471.0,2366.0,2,13,3.4,2,1,0.24,4.3
+CUS-90481,2025-10-03,Peshawar,Male,26.0,Instagram,None,JazzCash,No,Yes,3,7104.0,2519.0,1,34,0.6,0,0,0.12,4.4
+CUS-90482,2024-11-05,Rawalpindi,Female,55.0,TikTok,None,Card,Yes,Yes,8,21004.0,2681.0,1,47,5.5,0,1,0.31,2.9
+CUS-90483,2025-09-15,Karachi,Male,56.0,TikTok,None,Card,Yes,No,4,11068.0,2841.0,0,33,1.5,0,0,0.3,4.2
+CUS-90484,2024-10-27,Peshawar,Male,33.0,TikTok,None,Cash on Delivery,Yes,Yes,4,12819.0,2982.0,0,10,0.8,1,0,0.71,5.0
+CUS-90485,2025-08-23,Rawalpindi,Male,30.0,Referral,Silver,Easypaisa,Yes,Yes,5,11636.0,2384.0,1,61,1.3,0,0,0.23,4.7
+CUS-90486,2024-05-07,Lahore,Female,45.0,TikTok,None,Card,No,No,8,37540.0,4341.0,0,83,0.9,2,1,0.09,4.9
+CUS-90487,2026-03-28,Peshawar,Female,62.0,Instagram,None,Cash on Delivery,Yes,No,1,4770.0,4849.0,0,22,0.3,0,1,0.65,4.2
+CUS-90488,2024-07-26,Karachi,Male,36.0,Instagram,None,Easypaisa,Yes,Yes,6,19792.0,3569.0,0,18,0.6,0,0,0.19,3.7
+CUS-90489,2024-07-21,Faisalabad,Female,37.0,Organic,None,Easypaisa,Yes,Yes,11,60741.0,5516.0,1,5,5.2,0,1,0.16,3.1
+CUS-90490,2025-03-16,Faisalabad,Female,26.0,Organic,Silver,Easypaisa,Yes,No,6,17328.0,2922.0,1,66,1.7,1,1,0.63,3.8
+CUS-90491,2025-11-14,Karachi,Male,45.0,Instagram,Gold,Cash on Delivery,Yes,No,2,10435.0,5058.0,4,27,0.3,0,0,0.13,4.8
+CUS-90492,2025-02-24,Rawalpindi,Female,28.0,Instagram,None,JazzCash,Yes,No,8,41889.0,5303.0,0,34,1.7,0,0,0.14,4.4
+CUS-90493,2026-02-02,Karachi,Female,64.0,Google Search,None,Cash on Delivery,No,No,1,991.0,914.0,1,10,3.5,0,0,0.16,4.1
+CUS-90494,2024-08-05,Rawalpindi,Male,28.0,Organic,None,JazzCash,No,No,3,4723.0,1562.0,1,72,1.1,0,0,0.15,5.0
+CUS-90495,2025-06-30,Karachi,Female,30.0,Instagram,None,JazzCash,Yes,No,3,6249.0,2238.0,2,22,1.0,0,1,0.15,4.5
+CUS-90496,2024-02-18,Karachi,Male,37.0,Google Search,Silver,Easypaisa,No,No,8,19326.0,2622.0,0,31,8.1,1,1,0.68,2.7
+CUS-90497,2024-01-23,Lahore,Male,40.0,Facebook Ads,Silver,Cash on Delivery,No,No,14,20372.0,1390.0,2,7,4.7,0,1,0.19,2.8
+CUS-90498,2026-01-24,Karachi,Female,41.0,Facebook Ads,Gold,JazzCash,Yes,No,1,1657.0,1645.0,1,16,0.2,0,1,0.16,4.7
+CUS-90499,2026-03-18,Karachi,Male,45.0,Instagram,Silver,Card,No,No,1,5202.0,5633.0,1,28,2.1,0,1,0.35,3.7

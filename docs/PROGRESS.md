@@ -13,35 +13,21 @@ file alone and continue correctly._
 | Phase | Status | Notes |
 |---|---|---|
 | 0 — Audit | ✅ Done | See below |
-| 1 — Benchmark harness | ✅ Done (harness itself) | Built and runs correctly: 26/27 checks pass on the 2 datasets that exist; 4/6 datasets still missing (see "BLOCKER") so full 6-dataset coverage is NOT yet complete |
-| 2 — Data Understanding | ⬜ Not started | `data_understanding_service.py` already exists from a prior task but is NOT yet the single source of truth for target selection — see Phase 0 finding #1 |
-| 3 — Cleaning | ⬜ Not started | Partially done in a prior task (`column_roles`-aware, backward compatible) — needs the plausibility-range and grouped-imputation work this phase specifies |
+| 1 — Benchmark harness | ✅ Done | All 6 datasets present and running: **60/64 checks pass** (2026-09-26). See "Full 6-dataset baseline" below for the exact table and the 4 remaining, individually-diagnosed failures. |
+| 2 — Data Understanding | 🟡 Partial | Target-candidate scoring, single-threshold leakage, and post-outcome hints hardened this session (Findings 8-11) — but still living in `dataset_service`/`ml_service`, not yet merged into `data_understanding_service` as the single source of truth. Broader scope (new roles, unit tracking, Gemini tie-breaker) still open — see "Next step". |
+| 3 — Cleaning | ⬜ Not started | Partially done in a prior task (`column_roles`-aware, backward compatible). Needs the plausibility-range work this phase specifies — concretely motivated now by Finding 12 (telecom fraud values). |
 | 4 — Planner | ⬜ Not started | `transaction_analysis_service.build_analysis_plan()` exists for transaction logs only; no segmentation/prediction planner yet |
-| 5 — Modeling safety | ⬜ Not started | `ml_service.py` has real leakage detection; `return_prediction_service.py` does NOT use it (duplicated, unsafe path) — see Phase 0 finding #2 |
+| 5 — Modeling safety | 🟡 Partial | Batch prediction now reconstructs date-derived features from raw uploads (Finding 11) — but `return_prediction_service.py` still bypasses `ml_service`'s safety entirely (Phase 0 finding #2, unchanged). |
 | 6 — Adaptive report | ⬜ Not started | Report sections are hardcoded template branches (model/clusters/transaction_analysis), not truly plan-driven — see Phase 0 finding #3 |
 | 7 — AI reliability | ⬜ Not started | Gemini service is unified and cached for supervised/clustering paths; transaction-log AI narrative does NOT use the same DB cache — see Phase 0 finding #4 |
 | 8 — App consistency | ⬜ Not started | No pipeline versioning exists yet |
 | 9 — Final verification | ⬜ Not started | Depends on all above |
 
-## BLOCKER — 4 of 6 benchmark datasets do not exist yet
+## All 6 benchmark datasets now present (BLOCKER resolved 2026-09-26)
 
-Only `coffee_shop_transactions.csv` and `karachi_food_delivery_dataset.csv` exist in
-`backend/tests/data/`. Missing, with specific numeric acceptance criteria that must come
-from real, provided data (fabricating data to hit them would violate this task's own
-"never tune to the answer keys" rule and this project's standing no-fake-data rule):
-
-- `customer_churn_dataset.csv` (+ implicit ~35% churn rate, specific top-driver columns)
-- `retail_sales_dataset.csv` (+ Electronics-top-category, Nov-Dec peak expectations)
-- `customer_retention_training.csv` + `new_customers_to_predict.csv` (500 rows, true
-  returner count 223)
-- `telecom_subscribers_usage.csv` + `answer_key_true_segments.csv` (true segment labels
-  for a ≥85% match-rate check)
-
-**Action needed from the user**: provide these files in `backend/tests/data/`. Phase 1's
-harness (below) is built to check all 6 datasets' full check lists but will report
-`SKIPPED (file not found)` for these 4 until then — Phase 1 is not "complete" (per this
-task's own "never start the next phase while benchmark checks for completed phases are
-failing" rule) until they're available and passing.
+The user supplied all 4 previously-missing files in `backend/tests/data/` on 2026-09-26
+(`customer_churn_dataset.csv` needed a rename from `customer_churn_dataset (1).csv`).
+All 10 benchmark files (6 datasets + 4 answer keys / batch-prediction inputs) are present.
 
 ## Phase 0 — Audit findings
 
@@ -261,13 +247,182 @@ alone, confirms it's suggested without formula info, then confirms it's excluded
 formula_columns is supplied. Full suite: 243/243 passing. Full benchmark: 27/27 (no
 regression from either fix).
 
+## Full 6-dataset baseline (2026-09-26, after Findings 8-12 below) — 60/64 checks pass
+
+```
+customer_churn_dataset.csv:        10/10 PASS
+retail_sales_dataset.csv:           8/10 PASS  (2 documented gaps, see below)
+karachi_food_delivery_dataset.csv: 12/12 PASS
+customer_retention_training.csv:    8/8  PASS
+coffee_shop_transactions.csv:      15/15 PASS
+telecom_subscribers_usage.csv:      7/9  PASS  (2 documented gaps, see below)
+
+60/64 checks passed — 6 dataset(s) run, 0 skipped, 0 errored
+```
+
+Full backend test suite: **243/243 passing** (after fixing one test fixture collision —
+see Finding 9).
+
+The 4 remaining failures, each individually diagnosed (none is a silent/unknown gap):
+
+1. **retail: `customer_rating` not excluded as post-outcome** — root-caused in Finding 10
+   below; a real, disclosed limitation of correlation-based post-outcome detection, not a
+   quick-fixable bug. User decision (2026-09-26): leave as-is, revisit as part of the
+   proper Phase 2 role-based merge.
+2. **retail: Nov-Dec revenue peak not visible in report** — pre-existing, documented Phase
+   4/6 gap (report architecture has no seasonal-peak narrative for the plain-regression
+   path yet; only the transaction-log path's forecast section has this).
+3. **telecom: chosen k = 5, not 4** — root-caused in Finding 12 below (4 physically-
+   impossible call-minute values distort the cluster structure); the general fix belongs
+   in Phase 3 (plausibility-range cleaning), not implemented yet.
+4. **telecom: match rate vs. answer key** — pre-existing, documented Phase 4/5 gap:
+   `run_clustering_analysis()` doesn't expose per-row cluster assignments via the API at
+   all yet, so this check cannot run (not merely fail).
+
+## Finding 8 — `score_target_candidates` forced a target onto EVERY dataset (root cause #3, confirmed) — ✅ FIXED
+
+With all 6 datasets available, `telecom_subscribers_usage.csv` (spec: "NO target;
+segmentation plan") instead paused Auto Analyze at `awaiting_target_confirmation` —
+proof that a target was being force-suggested where none should exist, the literal
+def of root cause #3.
+
+Root cause, verified directly: `score_target_candidates()`'s cardinality/shape tier
+(`"numeric with many distinct values (a regression candidate)"`, `"binary column"`,
+`"low-cardinality column"`) scored a column positively with **zero name or description
+evidence** — true of almost every measurement column in almost every dataset (verified:
+`video_streaming_hours_month`, `social_media_share_pct`, `night_data_share_pct`, `gender`,
+`plan_type` all scored positively in telecom with no outcome-semantic signal at all).
+
+**Fix applied**: a column can only become a target *candidate* if something ties it to a
+business outcome — a `TARGET_HINT_TIER1/2/3` name match, or a project-description mention.
+Cardinality/shape now only adjusts the score of an already-qualified candidate; it can
+never qualify one by itself. `TARGET_HINT_TIER3` was also expanded with `late`/`delayed`/
+`overdue` (verified necessary: without it, `late_delivery` — karachi's real, correct
+target — stopped qualifying too, since "late"/"delivery" matched no existing hint; this
+was caught by a real test regression, not by inspection).
+
+Verified against all 6 real datasets before/after:
+  - telecom: candidates go from 3 false positives → **0** (correctly proceeds to
+    clustering).
+  - karachi: `late_delivery` still qualifies (score 5.0, sole candidate).
+  - churn/retail/retention: `churn`/`sales_amount`/`will_return_next_90_days` all still
+    qualify and remain in the top-3 suggested candidates.
+
+## Finding 9 — single-column deterministic leaks invisible to Pearson correlation — ✅ FIXED
+
+`customer_retention_training.csv`'s `orders_next_90_days` (a future-window order count)
+is a **perfect** predictor of the target `will_return_next_90_days` — verified directly:
+`orders_next_90_days == 0` maps to `No` with 100% agreement, `> 0` maps to `Yes` with 100%
+agreement (1685 + 1340 of 3025 rows, zero exceptions) — but its **Pearson correlation**
+with the target is only 0.84, below `detect_leakage`'s 0.95 threshold, because the
+feature's extra graded variation among the `Yes` rows (1-5 orders) dilutes the linear
+correlation even though the boolean split is exact.
+
+**Fix applied**: `detect_leakage()` now also computes, for binary targets, the best
+single-threshold-split agreement (the same "does `a > threshold` agree with the target"
+idea `detect_pairwise_leakage` already uses between two columns, applied here to one
+column against a scanned threshold) — flagged at `>= 0.97` agreement. Verified this
+doesn't false-positive on the legitimate top features of churn/retention/karachi (next-
+closest scores were 0.65-0.68 in churn/retention, 0.89 in karachi for a column already
+excluded by the existing pairwise check anyway) before enabling it.
+
+**Regression caught and fixed**: this correctly flagged `tests/test_smart_features.py`'s
+`test_continuous_numeric_columns_are_not_flagged_as_id_like` fixture, whose synthetic
+`churn = 1 if charge > 50 else 0` is an exact deterministic function of the very feature
+the test meant to verify stays included — a real single-column leak by the test's own
+construction, unrelated to what the test was actually checking (is_id_like exclusion).
+Fixed by decoupling the fixture's target from the feature under test.
+
+## Finding 10 — post-outcome detection's "evidence" can be near-meaningless noise — DOCUMENTED, not fixed (user decision)
+
+Added `"return"` to `POST_OUTCOME_NAME_HINTS` so `returned` (retail) is name-matched
+alongside `customer_rating`. This fixed `returned`'s exclusion, but **not**
+`customer_rating`'s — investigated directly rather than re-tuning blindly:
+
+```
+customer_rating vs sales_amount:  correlation = 0.22%
+returned        vs sales_amount:  correlation = 3.6%
+complaints_last_6_months vs a synthetic telecom target: correlation = 0.85%-14%
+```
+
+`detect_post_outcome_features()`'s bar is *relative* (correlation `>=` the median of all
+other features' correlations, a "noise floor"), not absolute. All of the above are
+statistically indistinguishable near-zero noise — there is **no threshold value** that
+keeps `customer_rating` (0.22%) flagged while rejecting a hypothetical `telecom`
+false-positive at 0.85%, since 0.22% < 0.85%. Proven experimentally: real, hypothetical-
+target tests against telecom showed `complaints_last_6_months` clearing the noise floor
+and landing in "review" (defaulted-excluded) on correlations as low as 0.85%-1%.
+
+**Why this isn't fixed now**: no correlation-based threshold can resolve this — the
+actual signal for "returned"/"customer_rating" being post-outcome is **temporal**
+(a return or rating happens after a sale), which the current mechanism has no way to
+observe. The architecturally correct fix is Phase 2's own stated goal: post-outcome-ness
+should be a column **role** in `data_understanding_service`, independent of whichever
+target is chosen, not a correlation-vs-arbitrary-target heuristic in `ml_service`.
+
+**User decision (2026-09-26)**: leave as-is for now. Telecom's real Auto Analyze pipeline
+is already safe today — not because of this mechanism, but because Finding 8 makes
+telecom return zero target candidates, so `detect_post_outcome_features` never runs for
+it at all. `customer_rating` staying in retail's feature set is a known, documented,
+low-severity gap, not a regression.
+
+## Finding 11 — batch prediction rejected raw uploaded columns (Phase 5 requirement) — ✅ FIXED
+
+`customer_retention_training.csv`'s batch-prediction spec ("raw columns, dates processed
+by the saved pipeline") failed with `"missing required column(s): signup_date_year,
+signup_date_month, signup_date_dayofweek, ..."` — `prediction_service.predict_batch()`
+did `rows_df[all_features]` directly, requiring a fresh upload to already contain a
+trained model's internal DERIVED feature names, which no real raw file ever would.
+
+**Fix applied**: new `ml_service.derive_date_features_for_prediction()` — the exact
+inverse of `select_training_features()`'s date handling — reconstructs
+`{col}_year/month/dayofweek` from the model's recorded `preprocessing_json` (raw column
+name + which derived names it produced) if the raw column is present in the upload.
+Wired into both `predict_batch()` and `predict()` before feature validation, so both
+batch and single-row prediction only ever require the columns a real user actually has.
+
+Verified against the real files: `new_customers_to_predict.csv` (500 rows, raw
+`signup_date` string) now predicts successfully — 236 predicted returners vs. true 223
+(within the spec's 190-260 allowed range) — and this was only reachable at all once
+Finding 8 (orders_next_90_days leakage exclusion) also landed, since the batch file
+naturally lacks that future-only column.
+
+## Finding 12 — telecom clustering picks k=5, not 4 — ROOT-CAUSED, not fixed (Phase 3 scope)
+
+`call_minutes_month` has exactly 4 values (45000, 52000, 60000, 71000) against a normal
+range of mean=462/std=1876 (max otherwise in the low thousands) — a month has at most
+44,640 minutes total, so these 4 values are **physically impossible**, not merely
+statistically rare, matching the spec's "possible fraud" framing exactly.
+
+Verified causally (not just by inspection) — computed silhouette scores with and without
+these 4 rows, using the exact same feature set and KMeans/silhouette code
+`run_clustering_analysis()` uses:
+
+```
+WITH fraud rows:    k=2..6 silhouette = [.330, .406, .424, .431, .358] -> best k=5
+WITHOUT fraud rows: k=2..6 silhouette = [.367, .423, .437, .364, .297] -> best k=4
+```
+
+Removing the 4 rows flips the silhouette-optimal k from 5 to 4 — confirming they distort
+the cluster structure, not that the model was tuned to the answer key's k=4 (the
+"physically impossible" bound was established from the data's own physical limits before
+this verification, not reverse-engineered from the answer key).
+
+**Why this isn't fixed now**: excluding these values generally (not as a
+`telecom`-specific hardcoded `40000` constant) requires the plausibility-range /
+implausible-large-value cleaning Phase 3 already specifies (parallel to the existing
+rare-negative-value check, generalized to an upper bound too) — a bigger, shared
+mechanism, not a one-off patch in `run_clustering_analysis()`. Documented here so Phase 3
+picks this up as a concrete, pre-verified test case rather than starting from scratch.
+
 ## Next step
 
-Phase 1 harness is done and working; Findings 6 and 7 (the concrete bugs it surfaced so
-far) are fixed and verified. These are both genuine, narrow instances of Phase 2's
-"history vs. post-outcome" and "formula column" classification work, done surgically in
-`ml_service.py`/`dataset_service.py` rather than as a full data_understanding_service
-merge. The BROADER Phase 2 scope remains open and is NOT yet done:
+Phase 1 harness is done and working across all 6 datasets (60/64); Findings 6-12 (the
+concrete bugs/gaps it surfaced) are fixed, documented, or explicitly deferred per user
+decision. These are all genuine, narrow instances of Phase 2/3/5's stated scope, done
+surgically in `ml_service.py`/`dataset_service.py`/`prediction_service.py` rather than as
+a full `data_understanding_service`/cleaning merge. The BROADER Phase 2 scope remains open
+and is NOT yet done:
   - New roles: count (distinct from quantity), rate/percentage, free text, target
     candidate — only identifier/customer_id/timestamp/money/quantity/category/other
     exist today.
@@ -283,6 +438,7 @@ merge. The BROADER Phase 2 scope remains open and is NOT yet done:
     with no outcome").
   - `suggest_target_column()`'s formula-column blind spot noted above.
 
-Two paths forward, not mutually exclusive:
-  (a) Waiting on the 4 missing dataset files from the user for full 6-dataset coverage.
-  (b) Continuing Phase 2's broader merge now, testable against the 2 datasets present.
+All 6 datasets are now available, so this is no longer blocked — the broader Phase 2
+merge (or moving on to Phase 3's plausibility-range cleaning, motivated directly by
+Finding 12) is testable against the full set immediately. Both are legitimate next steps;
+neither is blocked on the other.

@@ -53,7 +53,7 @@ def run(client) -> list[CheckResult]:
     project_id, dataset_id = upload_dataset(client, DATASET_FILE)
 
     quality = client.get(f"/api/datasets/{dataset_id}/quality").json()
-    age_issue = next((i for i in quality if i.get("column", "").lower() == "age"), None)
+    age_issue = next((i for i in quality if (i.get("column") or "").lower() == "age"), None)
     checks.append(CheckResult("implausible ages (7, 134, -1) flagged", age_issue is not None, str(age_issue)))
 
     complaints_flagged = any("complaint" in (i.get("column") or "").lower() and i.get("type") in ("impossible_values",) for i in quality)

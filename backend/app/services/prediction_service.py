@@ -7,9 +7,18 @@ from sqlalchemy.orm import Session
 
 from app.models.ml_model import MLModel
 from app.models.prediction import Prediction
+from app.services.ml_service import derive_date_features_for_prediction
 from app.utils.validators import DatasetValidationError
 
 MAX_BATCH_ROWS = 5000
+
+
+def _to_native(value):
+    if pd.isna(value):
+        return None
+    if isinstance(value, (np.generic,)):
+        return value.item()
+    return value
 
 
 def _load_bundle(model_record: MLModel) -> dict:
@@ -97,13 +106,16 @@ def predict(db: Session, model_record: MLModel, features: dict) -> Prediction:
     label_map = bundle.get("label_map")
     all_features = model_record.feature_columns_json or []
 
-    missing = [f for f in all_features if f not in features]
+    input_df = pd.DataFrame([features])
+    input_df = derive_date_features_for_prediction(input_df, model_record.preprocessing_json or {})
+
+    missing = [f for f in all_features if f not in input_df.columns]
     if missing:
         raise DatasetValidationError(
             f"Missing required feature values: {', '.join(missing)}."
         )
 
-    row = {f: features.get(f) for f in all_features}
+    row = {f: _to_native(input_df.iloc[0][f]) for f in all_features}
     input_df = pd.DataFrame([row])
 
     raw_pred = pipeline.predict(input_df)[0]
@@ -146,6 +158,8 @@ def predict_batch(model_record: MLModel, rows_df: pd.DataFrame) -> list[dict]:
     label_map = bundle.get("label_map")
     all_features = model_record.feature_columns_json or []
 
+    rows_df = derive_date_features_for_prediction(rows_df, model_record.preprocessing_json or {})
+
     missing_cols = [f for f in all_features if f not in rows_df.columns]
     if missing_cols:
         raise DatasetValidationError(
@@ -159,13 +173,6 @@ def predict_batch(model_record: MLModel, rows_df: pd.DataFrame) -> list[dict]:
         proba_matrix = pipeline.predict_proba(input_df)
 
     reverse_map = {v: k for k, v in (label_map or {}).items()} if label_map else {}
-
-    def _to_native(value):
-        if pd.isna(value):
-            return None
-        if isinstance(value, (np.generic,)):
-            return value.item()
-        return value
 
     results = []
     for i in range(len(input_df)):

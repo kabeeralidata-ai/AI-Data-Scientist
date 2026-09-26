@@ -264,17 +264,74 @@ def select_training_features(df: pd.DataFrame, target_column: str) -> tuple[pd.D
     return df, selection
 
 
+def derive_date_features_for_prediction(df: pd.DataFrame, preprocessing: dict) -> pd.DataFrame:
+    """The inverse of select_training_features's date handling, used at prediction time:
+    reconstructs the year/month/dayofweek columns a model was trained on from the ORIGINAL
+    raw date column(s) (preprocessing['excluded_datetime_raw']) a fresh upload naturally
+    contains, so prediction — batch or single-row — only ever requires the raw columns a
+    real user has (e.g. 'signup_date'), never the model's internal derived feature names
+    ('signup_date_year', ...). A no-op for any raw column not present in df (missing_cols
+    validation downstream reports that honestly rather than this silently guessing)."""
+    df = df.copy()
+    excluded_datetime_raw = preprocessing.get("excluded_datetime_raw") or []
+    derived_date_features = set(preprocessing.get("derived_date_features") or [])
+    for raw_col in excluded_datetime_raw:
+        if raw_col not in df.columns:
+            continue
+        parsed = pd.to_datetime(df[raw_col], errors="coerce")
+        for part, accessor in (("year", "year"), ("month", "month"), ("dayofweek", "dayofweek")):
+            derived_name = f"{raw_col}_{part}"
+            if derived_name in derived_date_features:
+                df[derived_name] = getattr(parsed.dt, accessor)
+    return df
+
+
+SINGLE_THRESHOLD_LEAKAGE_AGREEMENT = 0.97
+
+
+def _best_single_threshold_agreement(feature: pd.Series, target_bool: pd.Series) -> float:
+    """Same 'does a > b agree with the target' idea detect_pairwise_leakage uses between
+    TWO columns, applied to one column against a scanned split threshold instead — catches
+    a deterministic-but-nonlinear single-column leak (e.g. a future-window event COUNT that
+    is exactly 0 whenever the outcome is negative and >0 whenever it's positive) that plain
+    Pearson correlation can under-score, since the count's extra graded variation among the
+    positive cases dilutes the linear correlation even though the threshold split is exact.
+    Skipped for very high-cardinality features (>1000 distinct values): a real deterministic
+    leak of this kind is inherently a small, reused set of values (a count, a tier, a flag),
+    not a near-continuous measurement, so this stays cheap without needing a result cap."""
+    values = feature.dropna().unique()
+    if len(values) < 2 or len(values) > 1000:
+        return 0.0
+    values = np.sort(values)
+    thresholds = (values[:-1] + values[1:]) / 2.0
+    mask = feature.notna()
+    aligned_feature = feature[mask].to_numpy()
+    aligned_target = target_bool[mask].to_numpy()
+    best = 0.0
+    for t in thresholds:
+        derived = aligned_feature > t
+        agreement = (derived == aligned_target).mean()
+        agreement = max(agreement, 1 - agreement)
+        best = max(best, agreement)
+    return best
+
+
 def detect_leakage(df: pd.DataFrame, target_column: str, feature_columns: list[str]) -> list[dict]:
     """Flags features that are near-copies or direct calculations of the target, based on
-    a statistically meaningful signal (correlation >= 0.95 — a near-perfect linear
-    relationship) rather than a name-based guess, so a feature genuinely derived from the
-    target (e.g. profit as a fixed fraction of sales_amount) doesn't let the model 'cheat'
-    by learning to reconstruct the target from a disguised copy of itself.
+    a statistically meaningful signal — either a near-perfect linear correlation (>= 0.95)
+    or, for a binary target, a near-perfect single-threshold split agreement (>= 0.97) —
+    rather than a name-based guess, so a feature genuinely derived from the target (e.g.
+    profit as a fixed fraction of sales_amount, or a future-window order count that's
+    exactly 0 whenever the target is negative) doesn't let the model 'cheat' by learning to
+    reconstruct the target from a disguised copy of itself.
     """
     target_series = pd.to_numeric(df[target_column], errors="coerce")
     if target_series.notna().sum() < 2:
         target_series = df[target_column].astype("category").cat.codes.astype(float)
         target_series = target_series.replace(-1, np.nan)
+
+    target_codes, target_uniques = pd.factorize(df[target_column].astype(str))
+    target_bool = pd.Series(target_codes.astype(bool), index=df.index) if len(target_uniques) == 2 else None
 
     warnings = []
     for col in feature_columns:
@@ -284,15 +341,16 @@ def detect_leakage(df: pd.DataFrame, target_column: str, feature_columns: list[s
         if feature_series.notna().sum() < 2:
             continue
         aligned = pd.concat([feature_series, target_series], axis=1).dropna()
-        if len(aligned) < 5:
-            continue
-        try:
-            corr = float(aligned.iloc[:, 0].corr(aligned.iloc[:, 1]))
-        except Exception:
-            continue
-        if corr != corr:  # NaN check without importing math
-            continue
-        if abs(corr) >= LEAKAGE_CORRELATION_THRESHOLD:
+        corr = None
+        if len(aligned) >= 5:
+            try:
+                corr = float(aligned.iloc[:, 0].corr(aligned.iloc[:, 1]))
+            except Exception:
+                corr = None
+            if corr != corr:  # NaN check without importing math
+                corr = None
+
+        if corr is not None and abs(corr) >= LEAKAGE_CORRELATION_THRESHOLD:
             warnings.append(
                 {
                     "column": col,
@@ -304,6 +362,23 @@ def detect_leakage(df: pd.DataFrame, target_column: str, feature_columns: list[s
                     ),
                 }
             )
+            continue
+
+        if target_bool is not None:
+            agreement = _best_single_threshold_agreement(feature_series, target_bool)
+            if agreement >= SINGLE_THRESHOLD_LEAKAGE_AGREEMENT:
+                warnings.append(
+                    {
+                        "column": col,
+                        "correlation": round(agreement, 4),
+                        "reason": (
+                            f"A single threshold split of '{col}' agrees with '{target_column}' "
+                            f"{agreement:.1%} of the time — a near-perfect, deterministic relationship "
+                            "(e.g. a future-window count that's exactly zero whenever the outcome is "
+                            "negative), even where its plain linear correlation looked unremarkable."
+                        ),
+                    }
+                )
     return warnings
 
 
@@ -413,7 +488,7 @@ def detect_pairwise_leakage(df: pd.DataFrame, target_column: str, feature_column
 POST_OUTCOME_NAME_HINTS = (
     "tip", "rating", "review", "feedback", "refund", "complaint",
     "resolution", "resolved", "closed", "cancelled", "satisfaction",
-    "late", "delayed", "overdue",
+    "late", "delayed", "overdue", "return",
 )
 
 

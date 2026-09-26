@@ -37,7 +37,11 @@ def test_continuous_numeric_columns_are_not_flagged_as_id_like(auth_client):
     for i in range(50):
         charge = round(15.5 + i * 1.37, 2)  # distinct float per row, like a real price
         plan = "Basic" if i % 2 == 0 else "Premium"
-        churn = 1 if charge > 50 else 0
+        # Deliberately NOT a function of charge — this test is about is_id_like
+        # exclusion, not leakage detection; a target that's a deterministic threshold
+        # of the exact feature under test would (correctly) get caught as a real
+        # single-column leak by detect_leakage, which isn't what's being tested here.
+        churn = 1 if i % 3 == 0 else 0
         rows.append(f"CUST-{i},{charge},{plan},{churn}")
     content = "\n".join(rows)
 

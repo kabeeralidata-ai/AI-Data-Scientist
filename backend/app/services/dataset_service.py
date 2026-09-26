@@ -28,7 +28,7 @@ TARGET_NAME_HINTS = (
 # both are legitimate targets, but the former is the more common intended one.
 TARGET_HINT_TIER1 = ("target", "label", "y")
 TARGET_HINT_TIER2 = ("sales", "revenue", "amount")
-TARGET_HINT_TIER3 = ("price", "profit", "churn", "returned", "outcome")
+TARGET_HINT_TIER3 = ("price", "profit", "churn", "returned", "outcome", "late", "delayed", "overdue")
 GROUPING_NAME_HINTS = ("city", "region", "category", "name", "segment", "channel")
 
 
@@ -126,16 +126,28 @@ def score_target_candidates(
         tokens = tokenize_column_name(name)
         reasons: list[str] = []
         score = 0.0
+        # A column only becomes a target CANDIDATE at all if something ties it to a
+        # business outcome (its name, or the project description) — never from shape
+        # alone. Cardinality/type (numeric-with-many-distinct-values, binary, ...) is
+        # true of most measurement columns in any dataset (e.g. every usage-metric
+        # column in a telecom table), so treating it as sufficient on its own means a
+        # target is "found" in literally every dataset, which is exactly root cause #3
+        # ("a prediction target always forced") this scorer must not reproduce. Below,
+        # cardinality only adjusts the score of an already-qualified candidate.
+        qualifies = False
 
         if tokens_match_any(tokens, TARGET_HINT_TIER1):
             score += 5
             reasons.append("column name explicitly suggests a prediction target")
+            qualifies = True
         elif tokens_match_any(tokens, TARGET_HINT_TIER2):
             score += 4
             reasons.append("column name suggests a core business outcome (sales/revenue/amount)")
+            qualifies = True
         elif tokens_match_any(tokens, TARGET_HINT_TIER3):
             score += 3
             reasons.append("column name suggests a business outcome")
+            qualifies = True
 
         if tokens_match_any(tokens, GROUPING_NAME_HINTS):
             score -= 3
@@ -160,8 +172,9 @@ def score_target_candidates(
         if description_lower and normalized_name in description_lower:
             score += 2
             reasons.append("mentioned in the project description")
+            qualifies = True
 
-        if score > 0:
+        if qualifies and score > 0:
             problem_type_hint = "regression" if (is_numeric and unique > 10) else "classification"
             scored.append(
                 {
