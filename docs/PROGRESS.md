@@ -201,11 +201,11 @@ telecom_subscribers_usage.csv: SKIPPED — file not found
 26/27 checks passed — 2 dataset(s) run, 4 skipped (missing file), 0 errored
 ```
 
-### Finding 6 — confirmed root cause of the ONE real failure (Phase 5 target)
+### Finding 6 — confirmed root cause of the ONE real failure — ✅ FIXED
 
 `ml_service.py::detect_pairwise_leakage()` (lines ~336-353): when two numeric columns
 `(a, b)` together reproduce a binary target almost perfectly (e.g. `late_delivery =
-delivery_time_min > promised_time_min`), the function excludes **both** columns
+delivery_time_min > promised_time_min`), the function excluded **both** columns
 symmetrically:
 ```python
 for col, other in ((a, b), (b, a)):
@@ -215,17 +215,42 @@ for col, other in ((a, b), (b, a)):
 The task (and this benchmark) explicitly wants only the OUTCOME-side column
 (`delivery_time_min`, only known after the delivery happens) excluded —
 `promised_time_min` is legitimate information known BEFORE the outcome and must be kept.
-The function has no concept of "which side of the pair is history vs. post-outcome" —
-that's exactly the "history vs. post-outcome" role Phase 2 must add, and Phase 5 must
-make the pairwise check consult it (only drop the post-outcome side of a leaking pair,
-not both) rather than dropping symmetrically.
+
+**Fix applied** (`ml_service.py`, new `_outcome_side_of_pair()`): a real, data-evidence
+signal (never a column name) — verified against the actual Karachi data before writing
+any code: `promised_time_min` has only 2 distinct values (55, 70 — a fixed SLA tier),
+while `delivery_time_min` has 127 (a continuous realized outcome). When one side of a
+leaking pair has >=3x fewer distinct values than the other, only the high-cardinality
+(outcome) side is excluded; when cardinality is similar (ambiguous — verified against the
+existing synthetic test `_derived_flag_csv`, ratio ~1.18x), both sides are still excluded,
+identical to the old behavior. This means the fix is additive: it only changes behavior
+in the case it was built to fix, never in the ambiguous case the original tests covered.
+
+Verified:
+  - New regression test `test_pairwise_leakage_excludes_only_the_outcome_side_when_cardinality_is_asymmetric`
+    (SLA-tiered synthetic data, mirroring the real Karachi shape) — passes.
+  - Existing `test_training_excludes_pairwise_derived_leakage_not_caught_by_single_column_correlation`
+    (ambiguous-cardinality synthetic data) — still passes unchanged, confirming no
+    regression in the case the fix doesn't apply to.
+  - 2 pre-existing Karachi end-to-end tests asserted the OLD (buggy) exclusion of
+    `promised_time_min` — updated to assert it's correctly KEPT (`test_karachi_end_to_end.py`).
+  - Benchmark: karachi_food_delivery_dataset.csv now **12/12 PASS** (was 11/12).
+  - Full backend suite: 241/241 passing (240 pre-existing + 1 new regression test; the 2
+    updated Karachi tests are part of the pre-existing count, now passing on the
+    corrected assertion instead of the old one).
+  - Full benchmark: **27/27 checks passed** across both datasets present.
 
 ## Next step
 
-Phase 1 harness itself is done and working. Two paths forward, not mutually exclusive:
+Phase 1 harness is done and working; Finding 6 (the one real bug it found) is fixed and
+verified. This is a genuine, concrete instance of Phase 2's "history vs. post-outcome"
+classification and Phase 5's "pair tests" requirement, done surgically inside
+`ml_service.py` rather than as part of a full data_understanding_service merge — the
+broader Phase 2 work (rate/percentage role, unit tracking, count vs. quantity
+distinction, free-text role, merging target-candidate scoring with a Gemini tie-breaker,
+and reconciling `detect_dataset_type`'s output labels with the spec's exact wording) is
+NOT yet done and remains the next real chunk of work.
+
+Two paths forward, not mutually exclusive:
   (a) Waiting on the 4 missing dataset files from the user for full 6-dataset coverage.
-  (b) Proceeding to Phase 2 (Data Understanding merge — finding #1) now, since it's
-      independently useful and fully testable against the 2 datasets already present,
-      and Finding 6 above gives Phase 2/5 a concrete, precise bug to fix as part of that
-      work.
-Proceeding with (b) while flagging (a) to the user.
+  (b) Continuing Phase 2's broader merge now, testable against the 2 datasets present.

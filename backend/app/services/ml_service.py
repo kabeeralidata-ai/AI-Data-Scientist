@@ -310,6 +310,28 @@ def detect_leakage(df: pd.DataFrame, target_column: str, feature_columns: list[s
 PAIRWISE_LEAKAGE_AGREEMENT_THRESHOLD = 0.95
 
 
+PAIRWISE_CARDINALITY_ASYMMETRY_RATIO = 3.0
+
+
+def _outcome_side_of_pair(va: pd.Series, vb: pd.Series) -> str | None:
+    """Given two numeric series whose comparison leaks the target, determines which one
+    is more likely the POST-OUTCOME (realized/continuous) side vs. the HISTORY (planned/
+    committed) side, using a data-evidence signal — never a column name: a planned/
+    promised/SLA-style value is drawn from a small, reused set (e.g. a delivery's
+    PROMISED time is one of a handful of standard SLA tiers), while the corresponding
+    REALIZED outcome varies almost continuously. Returns "a" or "b" (whichever is the
+    outcome side, to exclude), or None when the two columns' cardinality is too similar
+    to tell confidently — in that ambiguous case the caller falls back to excluding both,
+    the previous (safe but overly broad) behavior."""
+    unique_a, unique_b = va.nunique(), vb.nunique()
+    if unique_a == 0 or unique_b == 0 or unique_a == unique_b:
+        return None
+    ratio = max(unique_a, unique_b) / min(unique_a, unique_b)
+    if ratio < PAIRWISE_CARDINALITY_ASYMMETRY_RATIO:
+        return None
+    return "a" if unique_a > unique_b else "b"
+
+
 def detect_pairwise_leakage(df: pd.DataFrame, target_column: str, feature_columns: list[str]) -> list[dict]:
     """Flags PAIRS of numeric features whose simple comparison (a > b) almost exactly
     reproduces a binary target — e.g. 'late_delivery' being literally defined as
@@ -317,6 +339,13 @@ def detect_pairwise_leakage(df: pd.DataFrame, target_column: str, feature_column
     of leak, since neither column alone is highly correlated with the target; only the
     comparison between them is. Only applies when the target is binary (a continuous or
     multi-class target has no single natural "a > b" analogue to test against).
+
+    A leaking pair is NOT excluded symmetrically by default — see _outcome_side_of_pair:
+    when one side is confidently identifiable as the realized-outcome side (e.g.
+    delivery_time_min) and the other as a planned/committed value known in advance (e.g.
+    promised_time_min), only the outcome side is excluded. The history side is real,
+    legitimate, available-before-prediction information and must not be thrown away just
+    because it happens to correlate with the target alongside its outcome counterpart.
     """
     codes, uniques = pd.factorize(df[target_column].astype(str))
     if len(uniques) != 2:
@@ -347,21 +376,37 @@ def detect_pairwise_leakage(df: pd.DataFrame, target_column: str, feature_column
             agreement = (derived.values == target_bool[mask].values).mean()
             agreement = max(agreement, 1 - agreement)  # covers the opposite target/code mapping
             if agreement >= PAIRWISE_LEAKAGE_AGREEMENT_THRESHOLD:
-                for col, other in ((a, b), (b, a)):
+                outcome_side = _outcome_side_of_pair(va[mask], vb[mask])
+                if outcome_side == "a":
+                    pairs_to_flag = [(a, b, True)]
+                elif outcome_side == "b":
+                    pairs_to_flag = [(b, a, True)]
+                else:
+                    # Ambiguous which side is the realized outcome — fall back to the
+                    # safe default of excluding both, same as before this distinction existed.
+                    pairs_to_flag = [(a, b, False), (b, a, False)]
+                for col, other, confidently_outcome_side in pairs_to_flag:
                     if col in flagged:
                         continue
                     flagged.add(col)
-                    warnings.append(
-                        {
-                            "column": col,
-                            "correlation": round(float(agreement), 4),
-                            "reason": (
-                                f"Together with '{other}', this column almost exactly reproduces the "
-                                f"target ({agreement:.1%} agreement via a simple comparison) — the model "
-                                "could 'cheat' by combining the two instead of learning real patterns."
-                            ),
-                        }
+                    reason = (
+                        f"Together with '{other}', this column almost exactly reproduces the "
+                        f"target ({agreement:.1%} agreement via a simple comparison)"
                     )
+                    if confidently_outcome_side:
+                        reason += (
+                            f" — '{col}' varies far more than '{other}' ({int(df[col].nunique())} vs "
+                            f"{int(df[other].nunique())} distinct values), the signature of a realized "
+                            f"outcome vs. a planned/committed value — so only '{col}' is excluded; "
+                            f"'{other}' is kept as a legitimate, known-in-advance feature."
+                        )
+                    else:
+                        reason += (
+                            " — the model could 'cheat' by combining the two instead of learning real "
+                            "patterns, and it isn't clear from the data alone which side is known in "
+                            "advance, so both are excluded by default (re-includable manually)."
+                        )
+                    warnings.append({"column": col, "correlation": round(float(agreement), 4), "reason": reason})
     return warnings
 
 

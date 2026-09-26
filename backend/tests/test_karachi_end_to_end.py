@@ -1,7 +1,14 @@
 """End-to-end proof that Auto Analyze on the real Karachi food-delivery dataset produces
 a correct, non-leaky, properly-cleaned model — the exact scenario reported as broken:
-distance_km being treated as text, tip_pkr/customer_rating/delivery_time_min/
-promised_time_min still driving training, and a suspiciously perfect model score."""
+distance_km being treated as text, tip_pkr/customer_rating/delivery_time_min still
+driving training, and a suspiciously perfect model score.
+
+promised_time_min is deliberately NOT excluded (see
+ml_service._outcome_side_of_pair): it correlates with the target only alongside
+delivery_time_min (late_delivery = delivery_time_min > promised_time_min), but unlike
+delivery_time_min it's a committed SLA value known BEFORE the outcome, identifiable from
+its own much lower cardinality (a handful of standard tiers vs. delivery_time_min's
+near-continuous realized values) — a real, legitimate, available-in-advance feature."""
 
 import os
 
@@ -65,13 +72,13 @@ def test_auto_analyze_end_to_end_on_the_real_karachi_dataset(auth_client):
     model_detail = auth_client.get(f"/api/models/{best_model_id}").json()
     features = model_detail["feature_columns_json"]
 
-    excluded = {"order_id", "delivery_time_min", "promised_time_min", "tip_pkr", "customer_rating", "late_delivery"}
+    excluded = {"order_id", "delivery_time_min", "tip_pkr", "customer_rating", "late_delivery"}
     for col in excluded:
         assert col not in features, f"'{col}' must not be used as a training feature"
 
     included = {
         "distance_km", "traffic_level", "weather", "vehicle_type",
-        "prep_time_min", "rider_rating", "rider_experience_months",
+        "prep_time_min", "rider_rating", "rider_experience_months", "promised_time_min",
     }
     for col in included:
         assert col in features, f"'{col}' should be a legitimate training feature"
@@ -107,7 +114,7 @@ def test_shared_feature_resolution_used_by_manual_training_matches_auto_analyze(
     assert train_resp.status_code == 201
     features = train_resp.json()[0]["feature_columns_json"]
 
-    for col in ("order_id", "delivery_time_min", "promised_time_min", "tip_pkr", "customer_rating"):
+    for col in ("order_id", "delivery_time_min", "tip_pkr", "customer_rating"):
         assert col not in features
-    for col in ("distance_km", "traffic_level", "weather", "vehicle_type"):
+    for col in ("distance_km", "traffic_level", "weather", "vehicle_type", "promised_time_min"):
         assert col in features

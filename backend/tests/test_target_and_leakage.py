@@ -261,6 +261,52 @@ def test_single_column_leakage_check_alone_does_not_catch_the_pairwise_case(auth
     assert single_column_warnings == []
 
 
+def _sla_tiered_flag_csv(n=300):
+    """Shaped like the REAL karachi_food_delivery_dataset.csv (the benchmark that exposed
+    this bug): 'promised_time_min' is a fixed SLA drawn from a small set of standard tiers
+    (a handful of distinct values reused across many rows), while 'delivery_time_min' is
+    the continuous, near-unique REALIZED outcome — a real, generalizable cardinality
+    asymmetry between a planned/committed value and its outcome, unlike
+    _derived_flag_csv()'s synthetic 'promised' (a continuous function of distance, with
+    cardinality close to delivery_time_min's — deliberately a case where the two sides
+    can't be confidently told apart, and both must still be excluded)."""
+    random.seed(31)
+    sla_tiers = [45, 60, 75]
+    rows = ["distance_km,delivery_time_min,promised_time_min,late_delivery"]
+    for _ in range(n):
+        distance = random.uniform(1, 15)
+        promised = sla_tiers[int(distance) % len(sla_tiers)]
+        delivery = round(promised + random.uniform(-25, 25), 1)
+        late = "Yes" if delivery > promised else "No"
+        rows.append(f"{distance},{delivery},{promised},{late}")
+    return "\n".join(rows)
+
+
+def test_pairwise_leakage_excludes_only_the_outcome_side_when_cardinality_is_asymmetric(auth_client):
+    """Regression test for the benchmark-found bug: when one side of a leaking pair is
+    confidently identifiable (by cardinality alone, never by column name) as a
+    planned/committed value known in advance, only the realized-outcome side must be
+    excluded — the history side is legitimate, available-before-prediction information."""
+    project_id = create_project(auth_client)
+    upload_resp = upload_csv(auth_client, project_id, _sla_tiered_flag_csv())
+    dataset_id = upload_resp.json()["id"]
+
+    train_resp = auth_client.post(
+        "/api/models/train",
+        json={"dataset_id": dataset_id, "target_column": "late_delivery", "models": ["decision_tree"]},
+    )
+    assert train_resp.status_code == 201
+    model = train_resp.json()[0]
+
+    assert "delivery_time_min" not in model["feature_columns_json"]
+    assert "promised_time_min" in model["feature_columns_json"]  # KEPT — the history side
+
+    warnings = model["metrics_json"]["leakage_warnings"]
+    flagged = {w["column"] for w in warnings}
+    assert flagged == {"delivery_time_min"}  # NOT promised_time_min too
+    assert "planned/committed" in warnings[0]["reason"] or "distinct values" in warnings[0]["reason"]
+
+
 def _realistic_retail_csv(n=400):
     """Shaped like the real retail_sales_dataset.csv that exposed the original bug:
     profit is a NOISY ~10-30% margin of sales_amount (not an exact multiple), which
