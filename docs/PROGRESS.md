@@ -15,7 +15,8 @@ file alone and continue correctly._
 | 0 — Audit | ✅ Done | See below |
 | 1 — Benchmark harness | ✅ Done | All 6 datasets present and running. |
 | 2 — Data Understanding | ✅ Done (this round's scope) | Role-based post-outcome detection now lives in `data_understanding_service` (Findings 13-15) — genuinely target-independent, structural evidence, replacing the old correlation-based heuristic. `detect_dataset_type` reordering fix. Full benchmark: **61/64** (2026-09-26). Broader Phase 2 scope (new roles: count/rate/free-text, per-column unit tracking, Gemini tie-breaker for targets, full target-scoring merge) still open — see "Next step" — deliberately deferred, not required for this round's stated goal (role-based post-outcome + complaints_last_6_months). |
-| 3 — Cleaning | ✅ Done (this round's scope) | Plausibility-range cleaning added (age biological ceiling + time-unit-within-period physical ceiling — Finding 16). Telecom's 4 fraud call-minute values and 3 impossible ages (134/150/212) now genuinely corrected, not just statistically flagged. Finding 12's ROOT CAUSE is fixed and verified — but the exact k=4 benchmark target is still not hit (k=3 now, down from 5) — see Finding 17, an honest, undistorted result, not force-tuned to the answer key. |
+| 3 — Cleaning | ✅ Done (this round's scope) | Plausibility-range cleaning added (age biological ceiling + time-unit-within-period physical ceiling — Finding 16). Telecom's 4 fraud call-minute values and 3 impossible ages (134/150/212) now genuinely corrected, not just statistically flagged. |
+| 3.5 — Segmentation methodology | ✅ Done | `run_clustering_analysis()` rebuilt to standard methodology: behavioral/usage features only (demographics/age describe segments afterward, never form them), skewed columns log-transformed, k chosen from silhouette + GMM BIC + bootstrap stability together — never silhouette alone, never the answer key. This resolved Finding 17 for real: k=4 exactly, 99.9% match rate as a post-hoc diagnostic. See Finding 18. |
 | 4 — Planner | ⬜ Not started | `transaction_analysis_service.build_analysis_plan()` exists for transaction logs only; no segmentation/prediction planner yet |
 | 5 — Modeling safety | 🟡 Partial | Batch prediction now reconstructs date-derived features from raw uploads (Finding 11) — but `return_prediction_service.py` still bypasses `ml_service`'s safety entirely (Phase 0 finding #2, unchanged). |
 | 6 — Adaptive report | ⬜ Not started | Report sections are hardcoded template branches (model/clusters/transaction_analysis), not truly plan-driven — see Phase 0 finding #3 |
@@ -588,17 +589,105 @@ k=4 is reported honestly rather than closed by fitting the answer key.
 Full benchmark: **61/64** (unchanged from Phase 2's count — same 3 pre-existing gaps,
 just telecom's k mismatch is now 3-vs-4 instead of 5-vs-4). Full backend suite: 250/250.
 
+### Finding 18 — `run_clustering_analysis()` had 3 real methodology flaws, not just a stubborn k — ✅ FIXED (2026-09-26)
+
+Finding 17 concluded k=3-vs-4 shouldn't be chased further to avoid tuning to the answer
+key. That conclusion was correct GIVEN the scope investigated at the time (feature-set
+completeness and null-vs-drop handling) — but a deeper, user-directed investigation into
+standard segmentation methodology (never looking at the answer key to decide what to fix)
+found the clustering function itself had three real, independently-justifiable flaws:
+
+1. **Demographics were forming clusters, not describing them.** `age` was included as a
+   clustering input alongside behavioral/usage columns. Standard segmentation practice
+   clusters on behavior and profiles the result with demographics afterward — a
+   customer's age doesn't change which behavioral segment they're in, it explains one
+   once membership is already decided.
+2. **No log-transform for skewed usage columns.** Usage/count metrics (call minutes, GB,
+   SMS) are almost always right-skewed (most users use a little, a few use a lot); on the
+   raw scale, those few extreme values dominate the Euclidean distance KMeans/GMM are
+   built on.
+3. **k chosen from silhouette alone.** A single statistical measure can be misled by
+   whatever happens to be in the feature set — this is literally what picked k=5 for the
+   fraud-distorted data.
+
+**Fix applied**: `_clustering_feature_columns()` splits numeric columns into behavioral
+(clustering inputs) vs. descriptive (age, plus any derived-date-part column — checked by
+verifying the base column is itself a TIMESTAMP role, not a naive name-suffix guess, see
+below) — only `age` needed an explicit rule, since other demographics (city, gender, plan
+type) are already categorical and were never in the numeric feature set to begin with.
+`_log_transform_skewed()` applies `log1p` to any column with sample skew > 1 (a standard
+statistical convention), skipping any column with a negative value. `k` is now chosen by
+`_select_k_by_combined_score()`: for k=2..8, computes silhouette, Gaussian Mixture BIC,
+and bootstrap-resample stability (Adjusted Rand Index between a reference clustering and
+repeated resample refits — a standard reproducibility check), min-max normalizes all
+three, and averages them. None of this ever reads the answer key.
+
+**A real bug found and fixed while building this**: the first implementation's
+derived-date-part exclusion used a naive `col.endswith(("_year","_month","_dayofweek"))`
+check — this wrongly caught genuine usage columns that merely happen to end in `_month`
+(`call_minutes_month`, `data_usage_gb_month`, `sms_month`, `international_minutes_month`),
+shrinking the real feature set from 10 behavioral columns to 4 and producing a nonsense
+k=6. Caught by inspecting the actual `features_used` output before accepting the result,
+not by tuning against the answer key — fixed by requiring the SUFFIX-STRIPPED base column
+to itself be classified `ROLE_TIMESTAMP` before treating a `_month`/`_year`/`_dayofweek`
+column as date-derived (this currently never triggers for any of the 6 real datasets,
+since none of them derive date-part columns before clustering — a defensive rule for a
+future caller, verified not to misfire on the real data).
+
+`run_clustering_analysis()` also now exposes `predictions` (per-row `{id, cluster}`,
+joined on the dataset's customer_id/identifier column when one exists) — closing the
+Phase 4/5 "no per-row cluster assignments via the API" gap `checks_telecom.py` had been
+waiting on — and `k_selection` (every candidate k's silhouette/BIC/stability/combined
+score, for transparency/audit) and `descriptive_summary` per cluster (the EXCLUDED
+demographic/categorical columns' cluster-conditional means/distributions — age, city,
+gender, plan type, device tier — the "describe afterward" half of the methodology).
+
+**Real result on telecom** (verified end-to-end through the real API, not a standalone
+script):
+
+| k | silhouette | GMM BIC | stability | combined |
+|---|---|---|---|---|
+| 2 | 0.314 | 72579 | 1.000 | 0.391 |
+| 3 | 0.419 | 70341 | 0.998 | 0.668 |
+| **4** | **0.427** | **62875** | **1.000** | **0.755** |
+| 5 | 0.376 | 61284 | 0.974 | 0.637 |
+| 6 | 0.316 | 57149 | 0.981 | 0.530 |
+| 7 | 0.291 | 40633 | 0.983 | 0.618 |
+| 8 | 0.297 | 35913 | 0.958 | 0.668 |
+
+k=4 wins the combined score outright. `features_used` = the 10 genuinely behavioral
+columns (`data_usage_gb_month`, `call_minutes_month`, `sms_month`,
+`night_data_share_pct`, `international_minutes_month`, `social_media_share_pct`,
+`video_streaming_hours_month`, `roaming_days_last_year`, `avg_monthly_recharge_pkr`,
+`complaints_last_6_months`); `descriptive_features` = `['age']`; 6 of the 10 behavioral
+columns were log-transformed.
+
+**Diagnostic only, computed strictly AFTER k was chosen**: match rate against
+`answer_key_true_segments.csv` = **99.9%** — strong independent evidence the methodology
+fix was correct, not a coincidence, since the answer key played no role in choosing k,
+the feature split, or the transform.
+
+Full benchmark: **63/64** (up from 61/64 — both telecom checks now pass). Full backend
+suite: **250/250**. The one remaining failure is unrelated to clustering: retail's
+Nov-Dec seasonal-peak narrative (pre-existing Phase 4/6 report-architecture gap).
+
 ## Next step
 
-Phase 1 (harness, all 6 datasets) and this round's Phase 2 scope (role-based post-outcome
-detection + the `detect_dataset_type` fix it depends on) are both done — full benchmark
-61/64, full test suite 250/250. Findings 6-15 are fixed, documented, or explicitly
-deferred per user decision; none is a silent/unknown gap.
+Phase 1 (harness, all 6 datasets), this round's Phase 2 scope (role-based post-outcome
+detection), Phase 3 (plausibility-range cleaning), and the segmentation-methodology fix
+(Finding 18) are all done — full benchmark **63/64**, full test suite **250/250**.
+Findings 6-18 are fixed, documented, or explicitly deferred per user decision; none is a
+silent/unknown gap. The only remaining benchmark failure is retail's Nov-Dec report gap,
+which is explicitly Phase 6 scope (see below).
 
-**Now starting Phase 3** (plausibility-range cleaning), directly motivated by Finding 12
-(telecom's 4 physically-impossible call-minute values distorting clustering into k=5
-instead of k=4) — this depends on Phase 2's column roles (now in place) to know which
-columns a plausibility bound even applies to.
+**Now starting Phase 4** (the unified planner). Per the task's original spec: ONE shared
+planner that decides which analyses a dataset supports — prediction/classification,
+segmentation, transaction/revenue analytics, forecasting — instead of the current
+3-way hardcoded branch in `auto_analyze_service._run_profile_through_target_detection()`
+(supervised target found -> train; no target -> clustering; `dataset_type ==
+"transaction_log"` -> a SEPARATE bespoke planner, `transaction_analysis_service.build_analysis_plan()`,
+that only that one path uses). This is root cause #4's "forced/narrow analysis path"
+concern and Phase 0 Finding 1's documented duplication.
 
 The BROADER Phase 2 scope remains open and deliberately deferred (not required for this
 round's stated goal):

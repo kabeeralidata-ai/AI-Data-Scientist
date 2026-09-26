@@ -47,6 +47,11 @@ MONEY_HINTS = (
 QUANTITY_HINTS = ("quantity", "qty", "count", "units", "items", "orders")
 CATEGORY_HINTS = ("category", "type", "branch", "channel", "segment", "region", "method", "status", "gender")
 
+# Shared with cleaning_service (age plausibility bound) and ml_service (excluding age from
+# clustering's behavioral feature set) — a single source of truth for "is this an age
+# column" rather than three separate name-guess implementations.
+AGE_NAME_TOKEN = "age"
+
 # Vocabulary for a column that names a REACTION TO or CONSEQUENCE OF a single row's own
 # event (a tip/rating/review given for THIS order, THIS delivery running late, THIS
 # transaction being refunded/returned) — see detect_post_outcome_columns for why this is

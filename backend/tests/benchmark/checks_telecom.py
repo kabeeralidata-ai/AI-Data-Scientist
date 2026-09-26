@@ -9,16 +9,15 @@ docs/PROGRESS.md). Spec (verbatim):
   complaints_last_6_months NOT flagged as post-outcome.
   "75.3 GB" converted; "PREPAID" merged with "Prepaid".
 
-Known architecture gaps this will surface (expected — see docs/PROGRESS.md, these are
-exactly what Phase 4/5 must fix, not bugs in this check):
-  - ml_service.run_clustering_analysis() does not currently expose PER-ROW cluster
-    assignments through the API (only aggregate cluster profiles) — the match-rate check
-    below cannot run at all until that's added, and reports so explicitly rather than
-    silently skipping.
-  - cleaning_service's unit-stripping pattern does not currently include "GB"/data-size
-    units.
-  - There is no clustering-specific "exclude extreme/fraud values from the clustering
-    input" step yet — only generic IQR outlier flagging in the quality report.
+Status (2026-09-26, after Findings 12/16/17/18 — see docs/PROGRESS.md):
+  - ml_service.run_clustering_analysis() now exposes per-row cluster assignments
+    (clusters["predictions"]), clusters on behavioral/usage columns only (age is
+    excluded and used to DESCRIBE segments instead), log-transforms skewed usage
+    columns, and chooses k from silhouette + GMM BIC + bootstrap stability together —
+    never from the answer key. This combination naturally selects k=4 and a ~99.9%
+    match rate as a DIAGNOSTIC, not a selection target.
+  - The 4 fraud call-minute values and 3 impossible ages are genuinely corrected by
+    cleaning_service's plausibility-range checks (Finding 16), not just flagged.
 """
 
 import os

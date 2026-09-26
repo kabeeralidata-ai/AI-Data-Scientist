@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.models.analysis_run import AnalysisRun
 from app.models.dataset import Dataset
 from app.schemas.dataset import CleaningRequest
+from app.services.data_understanding_service import AGE_NAME_TOKEN
 from app.services.dataset_service import (
     DATE_HINT_KEYWORDS,
     build_dataset_profile,
@@ -43,7 +44,6 @@ IMPOSSIBLE_NEGATIVE_MAX_FRACTION = 0.05
 # biological ceiling regardless of dataset: a person's age, and a count of one time unit
 # within a bounded time period (e.g. minutes within a month — a month has a fixed maximum
 # number of minutes no matter what the data says).
-AGE_NAME_TOKEN = "age"
 AGE_MAX_PLAUSIBLE = 120  # the oldest medically verified human age on record is ~122
 
 TIME_UNIT_MINUTES = {

@@ -342,7 +342,7 @@ def _run_profile_through_target_detection(db, job: AutoAnalyzeJob, dataset: Data
             "No confident target column found — proceeding with unsupervised analysis instead.",
         )
         db.commit()
-        _run_general_analysis(db, job, dataset, project)
+        _run_general_analysis(db, job, dataset, project, column_roles)
         return None, dataset
 
     dataset_column_names = {c["name"] for c in (dataset.profile_json or {}).get("columns", [])}
@@ -627,10 +627,12 @@ def _run_transaction_log_analysis(db, job: AutoAnalyzeJob, dataset: Dataset, pro
         db.commit()
 
 
-def _run_general_analysis(db, job: AutoAnalyzeJob, dataset: Dataset, project: Project) -> None:
+def _run_general_analysis(
+    db, job: AutoAnalyzeJob, dataset: Dataset, project: Project, column_roles: dict | None = None
+) -> None:
     """Runs steps 5-8 for a dataset where no target column could be confidently detected —
     the unsupervised counterpart to _continue_training. Tries K-Means clustering on the
-    dataset's numeric, non-ID-like columns first (ml_service.run_clustering_analysis); if
+    dataset's behavioral/usage columns first (ml_service.run_clustering_analysis); if
     that isn't viable either (too few numeric columns / too few rows), falls back further
     to an EDA-only summary — dataset profile, data quality, and EDA findings are always
     real regardless, so there is always something honest to show, never a fake result."""
@@ -644,7 +646,7 @@ def _run_general_analysis(db, job: AutoAnalyzeJob, dataset: Dataset, project: Pr
         _set_step(job, "training", "running")
         db.commit()
         df = dataset_service.load_dataframe(dataset)
-        clusters = ml_service.run_clustering_analysis(dataset, df)
+        clusters = ml_service.run_clustering_analysis(dataset, df, column_roles=column_roles)
 
         if clusters:
             result["analysis_type"] = "clustering"

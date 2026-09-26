@@ -4,6 +4,7 @@ import uuid
 import joblib
 import numpy as np
 import pandas as pd
+from scipy.stats import skew as _scipy_skew
 from sklearn.cluster import KMeans
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import (
@@ -16,7 +17,8 @@ from sklearn.ensemble import (
 )
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import Lasso, LogisticRegression, Ridge
-from sklearn.metrics import confusion_matrix, silhouette_score
+from sklearn.metrics import adjusted_rand_score, confusion_matrix, silhouette_score
+from sklearn.mixture import GaussianMixture
 from sklearn.model_selection import cross_val_score, train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.pipeline import Pipeline
@@ -29,7 +31,16 @@ from xgboost import XGBClassifier, XGBRegressor
 from app.core.config import settings
 from app.models.dataset import Dataset
 from app.models.ml_model import MLModel
-from app.services.data_understanding_service import classify_columns, detect_dataset_type, detect_post_outcome_columns
+from app.services.data_understanding_service import (
+    AGE_NAME_TOKEN,
+    ROLE_CATEGORY,
+    ROLE_CUSTOMER_ID,
+    ROLE_IDENTIFIER,
+    ROLE_TIMESTAMP,
+    classify_columns,
+    detect_dataset_type,
+    detect_post_outcome_columns,
+)
 from app.services.dataset_service import (
     build_dataset_profile,
     detect_semantic_type,
@@ -1056,16 +1067,169 @@ def train_models(
     return saved_models
 
 
-def run_clustering_analysis(dataset: Dataset, df: pd.DataFrame, max_k: int = 6) -> dict | None:
+CLUSTERING_MIN_K = 2
+CLUSTERING_MAX_K = 8
+CLUSTERING_SKEW_THRESHOLD = 1.0  # standard statistical convention for "significantly skewed"
+CLUSTERING_STABILITY_BOOTSTRAP = 10
+
+
+def _clustering_feature_columns(
+    numeric_cols: list[str], column_roles: dict[str, dict] | None
+) -> tuple[list[str], list[str]]:
+    """Splits numeric, non-ID-like columns into (behavioral, descriptive) — standard
+    segmentation methodology clusters on BEHAVIORAL/USAGE signal only; demographics (age),
+    plan/category attributes, and any date-derived feature describe the resulting segments
+    afterward, they never form them (a customer's age doesn't change segment membership,
+    it explains one once membership is already decided by behavior). Only 'age' needs an
+    explicit exclusion here — other demographics (city, gender, plan type) are already
+    categorical, so they're never in numeric_cols to begin with.
+
+    A derived date part (`{timestamp_col}_year`/`_month`/`_dayofweek`, ml_service's own
+    naming convention from select_training_features) is excluded defensively in case a
+    future caller's cleaned frame ever contains one — but ONLY when the base column
+    (with the suffix stripped) is ITSELF classified as a timestamp; a naive suffix check
+    alone would wrongly catch a genuine usage metric like 'call_minutes_month' or
+    'data_usage_gb_month', which merely happen to end in '_month' without being derived
+    from any date column at all (verified: this exact false positive was found and fixed
+    while building this function, against real telecom data)."""
+    behavioral, descriptive = [], []
+    for col in numeric_cols:
+        tokens = tokenize_column_name(col)
+        role = (column_roles or {}).get(col, {}).get("role")
+        is_derived_date_part = False
+        for suffix in ("_year", "_month", "_dayofweek"):
+            if col.endswith(suffix):
+                base_col = col[: -len(suffix)]
+                if (column_roles or {}).get(base_col, {}).get("role") == ROLE_TIMESTAMP:
+                    is_derived_date_part = True
+                break
+        if AGE_NAME_TOKEN in tokens or role in (ROLE_IDENTIFIER, ROLE_CUSTOMER_ID) or is_derived_date_part:
+            descriptive.append(col)
+        else:
+            behavioral.append(col)
+    return behavioral, descriptive
+
+
+def _log_transform_skewed(df: pd.DataFrame, threshold: float = CLUSTERING_SKEW_THRESHOLD) -> tuple[pd.DataFrame, list[str]]:
+    """Log1p-transforms any column whose distribution is significantly right-skewed (a
+    standard convention: sample skewness > 1) — usage/count metrics (minutes, GB,
+    transactions) are almost always right-skewed (most customers use a little, a few use
+    a lot), and clustering on the raw scale lets those few extreme values dominate the
+    Euclidean distance the whole clustering is based on, over the bulk of normal usage.
+    Skipped for any column with a non-positive value (log1p needs x >= -1; a column that's
+    already mixed-sign isn't a plain right-skewed count/usage metric anyway)."""
+    df = df.copy()
+    transformed = []
+    for col in df.columns:
+        series = df[col]
+        if series.min() < 0:
+            continue
+        s = _scipy_skew(series.dropna())
+        if pd.notna(s) and s > threshold:
+            df[col] = np.log1p(series)
+            transformed.append(col)
+    return df, transformed
+
+
+def _gmm_bic(X: np.ndarray, k: int, seed: int) -> float:
+    """Bayesian Information Criterion for a k-component Gaussian Mixture fit to the same
+    scaled data KMeans clusters — a second, independent model-selection signal alongside
+    silhouette: BIC penalizes model complexity directly (more components must earn their
+    keep via a real improvement in fit, not just a smaller silhouette-optimal partition),
+    so combining the two catches a k that only looks good by one measure."""
+    gmm = GaussianMixture(n_components=k, random_state=seed, n_init=1)
+    gmm.fit(X)
+    return float(gmm.bic(X))
+
+
+def _bootstrap_stability(X: np.ndarray, k: int, seed: int, n_bootstrap: int = CLUSTERING_STABILITY_BOOTSTRAP) -> float:
+    """How reproducible a k-cluster partition is under resampling — fits a REFERENCE
+    clustering on the full data, then repeatedly refits on a bootstrap resample and
+    compares (via Adjusted Rand Index, chance-corrected agreement between two labelings)
+    against the reference restricted to the same resampled rows. A k that only fits well
+    because it's carving up sampling noise will disagree with itself across resamples; a
+    genuine segment structure reproduces. Averaged over n_bootstrap resamples."""
+    base_labels = KMeans(n_clusters=k, random_state=seed, n_init=10).fit_predict(X)
+    rng = np.random.RandomState(seed)
+    n = len(X)
+    scores = []
+    for i in range(n_bootstrap):
+        idx = rng.choice(n, size=n, replace=True)
+        boot_labels = KMeans(n_clusters=k, random_state=seed + i + 1, n_init=5).fit_predict(X[idx])
+        scores.append(adjusted_rand_score(base_labels[idx], boot_labels))
+    return float(np.mean(scores))
+
+
+def _select_k_by_combined_score(candidates: list[dict]) -> dict:
+    """Combines silhouette (higher better), GMM BIC (LOWER better — inverted here so
+    higher is always better across all three), and bootstrap stability (higher better)
+    into one score by min-max normalizing each across the candidate k's and averaging —
+    deliberately NOT silhouette alone, since silhouette alone is exactly what picked k=5
+    for a fraud-distorted telecom dataset before (see docs/PROGRESS.md Finding 12/17).
+    Never looks at any answer key — every input here comes from the data and the
+    candidate clusterings themselves."""
+    sils = [c["silhouette"] for c in candidates]
+    bics = [c["bic"] for c in candidates]
+    sil_range = (max(sils) - min(sils)) or 1.0
+    bic_range = (max(bics) - min(bics)) or 1.0
+    for c in candidates:
+        norm_sil = (c["silhouette"] - min(sils)) / sil_range
+        norm_bic = (max(bics) - c["bic"]) / bic_range
+        c["combined_score"] = round((norm_sil + norm_bic + c["stability"]) / 3, 4)
+    return max(candidates, key=lambda c: c["combined_score"])
+
+
+def _cluster_descriptive_summary(
+    df: pd.DataFrame, cluster_labels: pd.Series, descriptive_numeric: list[str], column_roles: dict[str, dict] | None
+) -> dict:
+    """Profiles a cluster with the columns deliberately excluded from FORMING it —
+    demographics (age) and categorical attributes (city, gender, plan type) — the
+    "describe segments afterward" half of standard segmentation methodology. Never
+    influences cluster membership, computed purely for reporting."""
+    summary: dict = {}
+    for col in descriptive_numeric:
+        if col in df.columns:
+            values = pd.to_numeric(df[col], errors="coerce")
+            if values.notna().any():
+                summary[col] = round(float(values.mean()), 2)
+    category_cols = [
+        n for n, r in (column_roles or {}).items() if r.get("role") == ROLE_CATEGORY and n in df.columns
+    ]
+    for col in category_cols:
+        counts = df[col].value_counts(dropna=True).head(3)
+        total = counts.sum()
+        if total > 0:
+            summary[col] = {
+                str(val): round(float(count) / float(total) * 100, 1) for val, count in counts.items()
+            }
+    return summary
+
+
+def run_clustering_analysis(
+    dataset: Dataset, df: pd.DataFrame, column_roles: dict[str, dict] | None = None, max_k: int = CLUSTERING_MAX_K
+) -> dict | None:
     """Unsupervised fallback used by Auto Analyze when no target column can be confidently
     detected — spec: 'If no target exists, allow analysis without supervised ML' instead of
-    forcing every dataset into classification/regression. Clusters on numeric, non-ID-like
-    columns only (reusing the already-computed dataset profile, so this never re-derives
-    semantic types). Returns None when there isn't enough usable numeric structure to
-    cluster meaningfully (fewer than 2 numeric columns or fewer than 20 complete rows) —
-    the caller falls back to an EDA-only general analysis in that case, never a fake
-    result. k is chosen by silhouette score over a small range rather than fixed, since the
-    "right" number of clusters genuinely depends on the dataset."""
+    forcing every dataset into classification/regression. Returns None when there isn't
+    enough usable numeric structure to cluster meaningfully (fewer than 2 behavioral
+    columns or fewer than 20 complete rows) — the caller falls back to an EDA-only general
+    analysis in that case, never a fake result.
+
+    Standard segmentation methodology, applied generally (not just for one dataset):
+      1. Cluster on BEHAVIORAL/USAGE columns only — demographics (age), category columns,
+         and derived date parts are excluded from FORMING clusters (_clustering_feature_columns)
+         and instead used to DESCRIBE the resulting segments (_cluster_descriptive_summary).
+      2. Right-skewed usage columns are log1p-transformed before scaling (_log_transform_skewed)
+         — untransformed, a few extreme values would dominate the distance metric.
+      3. k is chosen from silhouette, GMM BIC, and bootstrap resample stability TOGETHER
+         (_select_k_by_combined_score), never silhouette alone — a single statistical
+         measure can be misled by a distorted or noisy feature (this is exactly what
+         previously picked k=5 for telecom before implausible values were corrected;
+         see docs/PROGRESS.md Findings 12/16/17).
+      4. `column_roles` is optional (computed internally via classify_columns if omitted)
+         so this remains callable standalone, e.g. from tests, without every caller having
+         to run Data Understanding first.
+    """
     profile = dataset.profile_json or {}
     numeric_cols = [
         c["name"] for c in profile.get("columns", []) if c.get("is_numeric") and not c.get("is_id_like")
@@ -1073,30 +1237,56 @@ def run_clustering_analysis(dataset: Dataset, df: pd.DataFrame, max_k: int = 6) 
     if len(numeric_cols) < 2:
         return None
 
-    usable = df[numeric_cols].apply(pd.to_numeric, errors="coerce").dropna()
+    if column_roles is None:
+        column_roles = classify_columns(df, profile, use_gemini=False)
+
+    behavioral_cols, descriptive_numeric_cols = _clustering_feature_columns(numeric_cols, column_roles)
+    if len(behavioral_cols) < 2:
+        # Not enough BEHAVIORAL signal even if the raw numeric column count looked
+        # sufficient (e.g. a dataset that's mostly demographics) — fall back honestly
+        # rather than clustering on demographics alone, which standard methodology
+        # treats as a describe-afterward signal, not a clustering input.
+        behavioral_cols, descriptive_numeric_cols = numeric_cols, []
+
+    usable = df[behavioral_cols].apply(pd.to_numeric, errors="coerce").dropna()
     if len(usable) < 20:
         return None
 
+    usable_transformed, log_transformed_cols = _log_transform_skewed(usable)
+
     preprocessor = Pipeline(steps=[("imputer", SimpleImputer(strategy="median")), ("scaler", StandardScaler())])
-    X_scaled = preprocessor.fit_transform(usable)
+    X_scaled = preprocessor.fit_transform(usable_transformed)
 
     upper_k = min(max_k, len(usable) // 10, len(usable) - 1)
-    best_k, best_score, best_labels = None, -1.0, None
-    for k in range(2, max(3, upper_k + 1)):
+    seed = 42
+    candidates: list[dict] = []
+    for k in range(CLUSTERING_MIN_K, max(CLUSTERING_MIN_K + 1, upper_k + 1)):
         if k >= len(usable):
             break
-        labels = KMeans(n_clusters=k, random_state=42, n_init=10).fit_predict(X_scaled)
+        labels = KMeans(n_clusters=k, random_state=seed, n_init=10).fit_predict(X_scaled)
         if len(set(labels)) < 2:
             continue
-        score = silhouette_score(X_scaled, labels)
-        if score > best_score:
-            best_k, best_score, best_labels = k, score, labels
+        candidates.append(
+            {
+                "k": k,
+                "silhouette": round(float(silhouette_score(X_scaled, labels)), 4),
+                "bic": round(_gmm_bic(X_scaled, k, seed), 2),
+                "stability": round(_bootstrap_stability(X_scaled, k, seed), 4),
+                "labels": labels,
+            }
+        )
 
-    if best_k is None:
+    if not candidates:
         return None
+
+    best = _select_k_by_combined_score(candidates)
+    best_k, best_labels = best["k"], best["labels"]
 
     labeled = usable.copy()
     labeled["_cluster"] = best_labels
+    id_col = next(
+        (n for n, r in (column_roles or {}).items() if r.get("role") in (ROLE_CUSTOMER_ID, ROLE_IDENTIFIER)), None
+    )
     cluster_profiles = []
     for cluster_id in sorted(labeled["_cluster"].unique()):
         subset = labeled[labeled["_cluster"] == cluster_id]
@@ -1105,15 +1295,30 @@ def run_clustering_analysis(dataset: Dataset, df: pd.DataFrame, max_k: int = 6) 
                 "cluster": int(cluster_id),
                 "size": int(len(subset)),
                 "pct": round(len(subset) / len(labeled) * 100, 1),
-                "feature_means": {col: round(float(subset[col].mean()), 4) for col in numeric_cols},
+                "feature_means": {col: round(float(subset[col].mean()), 4) for col in behavioral_cols},
+                "descriptive_summary": _cluster_descriptive_summary(
+                    df.loc[subset.index], subset["_cluster"], descriptive_numeric_cols, column_roles
+                ),
             }
         )
+
+    predictions = [
+        {"id": (df.loc[idx, id_col] if id_col and id_col in df.columns else idx), "cluster": int(cluster)}
+        for idx, cluster in zip(usable.index, best_labels)
+    ]
 
     return {
         "method": "kmeans",
         "k": best_k,
-        "silhouette_score": round(float(best_score), 4),
-        "features_used": numeric_cols,
+        "silhouette_score": best["silhouette"],
+        "features_used": behavioral_cols,
+        "descriptive_features": descriptive_numeric_cols,
+        "log_transformed_features": log_transformed_cols,
         "rows_clustered": int(len(usable)),
         "clusters": cluster_profiles,
+        "predictions": predictions,
+        "k_selection": [
+            {"k": c["k"], "silhouette": c["silhouette"], "bic": c["bic"], "stability": c["stability"], "combined_score": c["combined_score"]}
+            for c in candidates
+        ],
     }
