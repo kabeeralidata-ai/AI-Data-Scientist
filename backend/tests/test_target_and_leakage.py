@@ -501,3 +501,30 @@ def test_dominant_post_outcome_feature_is_auto_excluded_not_just_flagged(auth_cl
     assert "tip_pkr" in leaked
     excluded_by_default = {w["column"] for w in model["metrics_json"]["post_outcome_excluded"]}
     assert excluded_by_default == {"customer_rating", "feedback_score"}
+
+
+def test_score_target_candidates_never_suggests_a_detected_formula_column():
+    """Regression test: a formula column (e.g. total = quantity * price - discount) must
+    never be suggested as a prediction target, even when its NAME would otherwise score
+    well (e.g. 'total_amount' matches the 'amount' name hint) — formula_columns (a real,
+    numerically-verified relationship) must override the name-hint score entirely."""
+    from app.services.dataset_service import score_target_candidates
+
+    profile = {
+        "row_count": 200,
+        "columns": [
+            {"name": "quantity", "is_id_like": False, "is_datetime": False, "is_numeric": True, "unique_count": 15},
+            {"name": "unit_price", "is_id_like": False, "is_datetime": False, "is_numeric": True, "unique_count": 40},
+            # "total_amount" would normally score well: matches TARGET_HINT_TIER2 ("amount")
+            # AND has many distinct values (a regression-candidate signal) — but it's a
+            # real formula column here, so it must be excluded regardless.
+            {"name": "total_amount", "is_id_like": False, "is_datetime": False, "is_numeric": True, "unique_count": 190},
+        ],
+    }
+    formula_columns = [{"column": "total_amount", "formula": "total_amount = quantity * unit_price", "inputs": ["quantity", "unit_price"]}]
+
+    without_formula_info = score_target_candidates(profile, description=None)
+    assert any(c["column"] == "total_amount" for c in without_formula_info)  # confirms it WOULD have scored without the fix
+
+    with_formula_info = score_target_candidates(profile, description=None, formula_columns=formula_columns)
+    assert all(c["column"] != "total_amount" for c in with_formula_info)

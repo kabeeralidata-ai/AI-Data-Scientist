@@ -92,15 +92,28 @@ def is_id_like_column(name: str, unique_count: int, row_count: int, is_numeric: 
     return False
 
 
-def score_target_candidates(profile: dict, description: str | None = None) -> list[dict]:
+def score_target_candidates(
+    profile: dict, description: str | None = None, formula_columns: list[dict] | None = None
+) -> list[dict]:
     """Scores every plausible target column instead of picking the first name-hint match,
     so a grouping/descriptive column (store_city, product_category, ...) never outranks a
     real business outcome (sales_amount, profit, churn, ...) just because it happens to be
     low-cardinality. Returns the top 3 candidates, most plausible first, each with a short
     human-readable reason — surfaced in the UI for the user to confirm or override, never
     silently auto-applied.
+
+    `formula_columns` (from data_understanding_service.detect_formula_columns — a REAL,
+    numerically-verified relationship like total = quantity * price - discount, never a
+    name guess) excludes a detected formula column from candidacy entirely: predicting a
+    value that's an exact arithmetic function of other columns in the same row is a
+    degenerate, useless "prediction," not a real target.
     """
-    candidates = [c for c in profile["columns"] if not c.get("is_id_like") and not c["is_datetime"]]
+    formula_column_names = {f["column"] for f in (formula_columns or [])}
+    candidates = [
+        c
+        for c in profile["columns"]
+        if not c.get("is_id_like") and not c["is_datetime"] and c["name"] not in formula_column_names
+    ]
     if not candidates:
         return []
 

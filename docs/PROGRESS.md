@@ -240,16 +240,48 @@ Verified:
     corrected assertion instead of the old one).
   - Full benchmark: **27/27 checks passed** across both datasets present.
 
+### Finding 7 — formula columns could still be suggested as targets — ✅ FIXED
+
+`dataset_service.score_target_candidates()` never consulted `detect_formula_columns()`'s
+output at all — a formula column (total = quantity × price − discount) with a
+target-hint-matching name (e.g. "total_amount" matching the "amount" hint) could still
+score well and be suggested as a target, directly violating Phase 4's "never choose...
+formula components... as targets" rule.
+
+**Fix applied**: `score_target_candidates()` gained an optional `formula_columns` param
+that excludes any detected formula column from candidacy entirely, before any name-hint
+scoring runs. `auto_analyze_service.py`'s call site now passes the `formula_columns`
+already computed by the Data Understanding step. `dataset_service.suggest_target_column()`
+(the lightweight Modeling-tab dropdown pre-fill, called right after upload before Data
+Understanding has run) does NOT yet pass this — a known, documented remaining gap, not
+silently claimed fixed.
+
+Verified: new unit test constructs a column that WOULD score well by name+cardinality
+alone, confirms it's suggested without formula info, then confirms it's excluded when
+formula_columns is supplied. Full suite: 243/243 passing. Full benchmark: 27/27 (no
+regression from either fix).
+
 ## Next step
 
-Phase 1 harness is done and working; Finding 6 (the one real bug it found) is fixed and
-verified. This is a genuine, concrete instance of Phase 2's "history vs. post-outcome"
-classification and Phase 5's "pair tests" requirement, done surgically inside
-`ml_service.py` rather than as part of a full data_understanding_service merge — the
-broader Phase 2 work (rate/percentage role, unit tracking, count vs. quantity
-distinction, free-text role, merging target-candidate scoring with a Gemini tie-breaker,
-and reconciling `detect_dataset_type`'s output labels with the spec's exact wording) is
-NOT yet done and remains the next real chunk of work.
+Phase 1 harness is done and working; Findings 6 and 7 (the concrete bugs it surfaced so
+far) are fixed and verified. These are both genuine, narrow instances of Phase 2's
+"history vs. post-outcome" and "formula column" classification work, done surgically in
+`ml_service.py`/`dataset_service.py` rather than as a full data_understanding_service
+merge. The BROADER Phase 2 scope remains open and is NOT yet done:
+  - New roles: count (distinct from quantity), rate/percentage, free text, target
+    candidate — only identifier/customer_id/timestamp/money/quantity/category/other
+    exist today.
+  - Per-column unit tracking (e.g. "km", "PKR", "%") — not tracked at all yet.
+  - Merging ALL target-candidate scoring into `data_understanding_service` (this session
+    only threaded formula-column awareness into the OLD `dataset_service` scorer, which
+    is still fundamentally name-hint-first, not evidence-first, for every other signal).
+  - The Gemini tie-breaker call for target selection (separate from the existing
+    column-ROLE Gemini tie-breaker, which already exists).
+  - Reconciling `detect_dataset_type()`'s internal labels
+    (transaction_log/customer_level/time_series/general) with the spec's exact wording
+    ("customer-level table with outcome" / "transaction log" / "time series" / "table
+    with no outcome").
+  - `suggest_target_column()`'s formula-column blind spot noted above.
 
 Two paths forward, not mutually exclusive:
   (a) Waiting on the 4 missing dataset files from the user for full 6-dataset coverage.

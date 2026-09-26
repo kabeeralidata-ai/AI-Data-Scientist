@@ -325,7 +325,7 @@ def _run_profile_through_target_detection(db, job: AutoAnalyzeJob, dataset: Data
     # which would otherwise get silently reused forever).
     _set_step(job, "target_detection", "running")
     db.commit()
-    candidates = dataset_service.score_target_candidates(dataset.profile_json, project.description)
+    candidates = dataset_service.score_target_candidates(dataset.profile_json, project.description, formula_columns=formula_columns)
     job.target_candidates_json = candidates
     flag_modified(job, "target_candidates_json")
     db.commit()
