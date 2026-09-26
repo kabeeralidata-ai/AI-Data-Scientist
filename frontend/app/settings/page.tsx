@@ -4,6 +4,7 @@ import { RefreshCw } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { useAuth } from "@/lib/auth-context";
 import { useAIStatus, useTestAIConnection } from "@/hooks/useAI";
+import { useHealth } from "@/hooks/useHealth";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
@@ -43,6 +44,7 @@ export default function SettingsPage() {
   const { user, logout } = useAuth();
   const { data: passiveStatus } = useAIStatus();
   const testConnection = useTestAIConnection();
+  const { data: health } = useHealth();
   // A just-run explicit test always wins over the passive/cached status underneath it.
   const aiStatus = testConnection.data ?? passiveStatus;
 
@@ -90,6 +92,21 @@ export default function SettingsPage() {
               </Button>
               <p className="mt-1.5 text-xs text-muted">
                 Performs a real, live request to Gemini (not just a config check).
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>System</CardTitle>
+            <CardDescription>What the backend server is currently running.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div>
+              <p className="text-xs text-muted">Backend commit</p>
+              <p className="font-mono text-sm text-foreground break-all">
+                {health?.git_commit ? health.git_commit.slice(0, 12) : "unavailable"}
               </p>
             </div>
           </CardContent>

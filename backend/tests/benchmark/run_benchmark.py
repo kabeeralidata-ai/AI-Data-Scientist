@@ -18,6 +18,7 @@ for _stream in (sys.stdout, sys.stderr):
     if hasattr(_stream, "reconfigure"):
         _stream.reconfigure(encoding="utf-8", errors="replace")
 
+from scripts.check_live_server import get_local_head, get_server_commit
 from tests.benchmark import (
     checks_churn,
     checks_coffee_shop,
@@ -38,7 +39,27 @@ MODULES = [
 ]
 
 
+def _warn_if_a_running_dev_server_is_stale() -> None:
+    """This benchmark always runs in-process against whatever code is currently checked
+    out (TestClient imports app.main directly — see harness.py), so it can never be
+    stale itself. But a SEPARATE long-lived dev server often also happens to be running
+    on localhost:8000 (used for manual/live verification) — warn here too if it's stale,
+    since that exact situation caused a real bug during Phase 6 (see
+    scripts/check_live_server.py)."""
+    local_head = get_local_head()
+    if not local_head:
+        return
+    server_commit = get_server_commit("http://localhost:8000")
+    if server_commit and server_commit != local_head:
+        print(
+            f"NOTE: a dev server on localhost:8000 is running commit {server_commit[:12]}, "
+            f"not the current HEAD ({local_head[:12]}). This benchmark run itself is unaffected "
+            f"(it never talks to that server), but restart it before any live-app verification.\n"
+        )
+
+
 def main() -> int:
+    _warn_if_a_running_dev_server_is_stale()
     results = [run_dataset_benchmark(m) for m in MODULES]
     all_ok = print_report(results)
     return 0 if all_ok else 1

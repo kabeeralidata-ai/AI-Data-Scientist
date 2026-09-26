@@ -12,17 +12,51 @@ from app.services.report_context_service import CHURN_TARGET_HINTS, CUSTOMER_ID_
 from app.utils.feature_names import humanize_column_name, humanize_feature_name
 
 
-def compute_insight_cache_key(dataset: Dataset | None, model: MLModel | None) -> str:
+def compute_insight_cache_key(dataset: Dataset | None, model: MLModel | None, kind: str = "model") -> str:
     """A short, deterministic fingerprint of 'what was the insight generated about' —
-    the dataset's cleaning version (bumps on every re-clean) and the trained model's id
+    the dataset's cleaning version (bumps on every re-clean), the trained model's id
     (a NEW row per training run in this app, so it already uniquely identifies one
-    specific trained model). Changing either invalidates any cached insight for it."""
+    specific trained model), and `kind` (the analysis type the narrative is actually
+    about: "model", "clustering", or "transaction_log"). `kind` matters because a
+    dataset with no model can still have two DIFFERENT kinds of narrative depending on
+    what Auto Analyze ran (clustering vs. transaction-log analysis) — without it, both
+    would collide on the same "no-model" cache key. Changing any part invalidates any
+    cached insight for it."""
     parts = [
         str(dataset.id) if dataset else "no-dataset",
         str(dataset.cleaning_version) if dataset else "0",
         str(model.id) if model else "no-model",
+        kind,
     ]
     return hashlib.sha256("|".join(parts).encode()).hexdigest()[:32]
+
+
+def build_cluster_context(clusters: dict) -> dict:
+    """Wraps clustering results (from ml_service.run_clustering_analysis) the same way
+    build_model_context wraps a trained model — a single, reusable shape so the AI
+    narrative generator, the Auto Analyze pipeline, and its retry path all build this
+    context identically instead of three separate inline dicts."""
+    return {"clusters": clusters}
+
+
+def build_transaction_context(dataset: Dataset, analysis: dict) -> dict:
+    """The verified, already-summarized slice of a transaction-log analysis (from
+    transaction_analysis_service.run_full_transaction_analysis) that's safe to hand the
+    AI — revenue, RFM segments, return-prediction (minus the raw per-row predictions),
+    and forecast. Shared by the original Auto Analyze run and its retry path so they can
+    never drift apart."""
+    context = build_dataset_context(dataset)
+    if analysis.get("revenue_analytics"):
+        context["revenue_analytics"] = analysis["revenue_analytics"]
+    if analysis.get("customer_rfm"):
+        context["customer_segments"] = analysis["customer_rfm"]["segments"]
+    if analysis.get("return_prediction"):
+        context["return_prediction"] = {
+            k: v for k, v in analysis["return_prediction"].items() if k != "predictions"
+        }
+    if analysis.get("sales_forecasting"):
+        context["sales_forecast"] = analysis["sales_forecasting"]
+    return context
 
 
 def build_dataset_context(dataset: Dataset) -> dict:

@@ -184,6 +184,121 @@ def test_retry_ai_insights_rejects_a_job_that_is_not_completed(auth_client):
     assert retry_resp.status_code == 409
 
 
+def _make_completed_job(db_session, project_id, dataset_id, result_json):
+    """Directly constructs a COMPLETED AutoAnalyzeJob row with the given result_json —
+    used to test retry_ai_insights()'s dispatch logic for clustering/transaction-log jobs
+    without re-running their (expensive, already-covered-elsewhere) full pipelines."""
+    import uuid
+
+    from app.models.auto_analyze_job import AutoAnalyzeJob, AutoAnalyzeJobStatus
+
+    job = AutoAnalyzeJob(
+        id=uuid.uuid4(),
+        project_id=uuid.UUID(project_id),
+        dataset_id=uuid.UUID(dataset_id),
+        status=AutoAnalyzeJobStatus.COMPLETED,
+        steps_json=None,
+        result_json=result_json,
+    )
+    db_session.add(job)
+    db_session.commit()
+    db_session.refresh(job)
+    return job
+
+
+def test_retry_ai_insights_works_for_a_clustering_job_not_just_supervised(auth_client, monkeypatch, db_session):
+    """Previously retry_ai_insights() checked job.result_json.get("best_model_id") and
+    silently returned early for a clustering job (no model), so the Retry button shown on
+    the UI whenever the AI step is a warning did nothing at all for clustering — no
+    error, no retried call, nothing. This directly exercises that clustering must now
+    actually attempt a fresh call and reflect the result."""
+    from app.models.ai_insight_cache import AIInsightCache
+    from app.services import auto_analyze_service
+
+    project_id = create_project(auth_client)
+    upload_resp = upload_csv(auth_client, project_id, _make_classification_csv())
+    dataset_id = upload_resp.json()["id"]
+
+    job = _make_completed_job(
+        db_session,
+        project_id,
+        dataset_id,
+        result_json={
+            "analysis_type": "clustering",
+            "best_model_id": None,
+            "clusters": {"k": 2, "clusters": [], "features_used": ["age", "monthly_spend"], "silhouette_score": 0.4},
+            "ai_insight": None,
+            "ai_available": False,
+            "ai_reason": "rate_limited",
+        },
+    )
+
+    monkeypatch.setattr(
+        "app.services.auto_analyze_service.ai_service.generate_insight",
+        lambda context: ("Clustering narrative, retried successfully.", "gemini"),
+    )
+
+    auto_analyze_service.retry_ai_insights(job.id)
+
+    db_session.refresh(job)
+    assert job.result_json["ai_insight"] == "Clustering narrative, retried successfully."
+    assert job.result_json["ai_available"] is True
+
+    cache_rows = db_session.query(AIInsightCache).filter(AIInsightCache.dataset_id == job.dataset_id).all()
+    assert len(cache_rows) == 1
+    assert cache_rows[0].insight == "Clustering narrative, retried successfully."
+    assert cache_rows[0].model_id is None
+
+
+def test_retry_ai_insights_works_for_a_transaction_log_job_not_just_supervised(auth_client, monkeypatch, db_session):
+    """Same gap as clustering above, for the transaction-log path — its narrative context
+    (revenue/RFM/return-prediction/forecast) must actually be rebuilt and sent, not
+    silently skipped just because there's no best_model_id."""
+    from app.models.ai_insight_cache import AIInsightCache
+    from app.services import auto_analyze_service
+
+    project_id = create_project(auth_client)
+    upload_resp = upload_csv(auth_client, project_id, _make_classification_csv())
+    dataset_id = upload_resp.json()["id"]
+
+    received_context = {}
+
+    def fake_generate(context):
+        received_context.update(context)
+        return "Transaction-log narrative, retried successfully.", "gemini"
+
+    job = _make_completed_job(
+        db_session,
+        project_id,
+        dataset_id,
+        result_json={
+            "analysis_type": "transaction_log",
+            "best_model_id": None,
+            "transaction_analysis": {
+                "revenue_analytics": {"total_revenue": 50000.0},
+                "customer_rfm": {"segments": {"Champions": 12}},
+            },
+            "ai_insight": None,
+            "ai_available": False,
+            "ai_reason": "rate_limited",
+        },
+    )
+
+    monkeypatch.setattr("app.services.auto_analyze_service.ai_service.generate_insight", fake_generate)
+
+    auto_analyze_service.retry_ai_insights(job.id)
+
+    db_session.refresh(job)
+    assert job.result_json["ai_insight"] == "Transaction-log narrative, retried successfully."
+    assert job.result_json["ai_available"] is True
+    assert received_context.get("revenue_analytics") == {"total_revenue": 50000.0}
+    assert received_context.get("customer_segments") == {"Champions": 12}
+
+    cache_rows = db_session.query(AIInsightCache).filter(AIInsightCache.dataset_id == job.dataset_id).all()
+    assert len(cache_rows) == 1
+    assert cache_rows[0].insight == "Transaction-log narrative, retried successfully."
+
+
 def test_confirm_target_rejects_an_unknown_column(auth_client):
     project_id = create_project(auth_client)
     upload_resp = upload_csv(auth_client, project_id, _make_classification_csv())

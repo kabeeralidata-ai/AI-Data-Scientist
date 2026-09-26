@@ -25,3 +25,17 @@ class BatchPredictionResponse(BaseModel):
     model_id: uuid.UUID
     row_count: int
     results: list[dict[str, Any]]
+
+
+class ReturnPredictionsResponse(BaseModel):
+    available: bool
+    reason: str | None = None
+    window_days: int | None = None
+    total_customers: int | None = None
+    predicted_will_return: int | None = None
+    predicted_will_not_return: int | None = None
+    predicted_uncertain: int | None = None
+    risk_bands: dict[str, str] | None = None
+    risk_group_counts: dict[str, int] | None = None
+    holdout_metrics: dict[str, Any] | None = None
+    customers: list[dict[str, Any]] = []

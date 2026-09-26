@@ -10,10 +10,12 @@ from app.core.types import GUID
 
 class AIInsightCache(Base):
     """Persists the last successfully-generated AI Insight per (project, dataset
-    cleaning version, model) combination, so a page reload can show the existing
-    insight without spending another Gemini request — only an explicit 'Regenerate'
-    (or a genuinely new dataset/model version) triggers a fresh call. See
-    context_service.compute_insight_cache_key for how cache_key is derived."""
+    cleaning version, model, analysis kind) combination, so a page reload can show the
+    existing insight without spending another Gemini request — only an explicit
+    'Regenerate' (or a genuinely new dataset/model version) triggers a fresh call. This
+    covers all three analysis types (supervised model, clustering, transaction-log), not
+    just the supervised path. See context_service.compute_insight_cache_key for how
+    cache_key is derived."""
 
     __tablename__ = "ai_insight_cache"
 

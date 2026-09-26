@@ -153,6 +153,63 @@ def test_recleaning_the_dataset_invalidates_the_cache(auth_client, monkeypatch, 
     assert hydrate.status_code == 404  # old cache_key no longer matches
 
 
+def _make_completed_job(db_session, project_id, dataset_id, result_json):
+    import uuid
+
+    from app.models.auto_analyze_job import AutoAnalyzeJob, AutoAnalyzeJobStatus
+
+    job = AutoAnalyzeJob(
+        id=uuid.uuid4(),
+        project_id=uuid.UUID(project_id),
+        dataset_id=uuid.UUID(dataset_id),
+        status=AutoAnalyzeJobStatus.COMPLETED,
+        steps_json=None,
+        result_json=result_json,
+    )
+    db_session.add(job)
+    db_session.commit()
+    return job
+
+
+def test_generate_insights_uses_cluster_context_for_a_clustering_dataset(auth_client, monkeypatch, db_session):
+    """The AITab's Generate/Regenerate button is shown for ANY dataset with no model
+    selected, including clustering-only projects — previously it silently built a
+    generic dataset-only context, blind to the actual cluster findings, even though the
+    UI presented it as a real 'Generate insight' action."""
+    project_id, dataset_id = _make_project_with_dataset(auth_client, "Clustering Insight Project")
+    _make_completed_job(
+        db_session,
+        project_id,
+        dataset_id,
+        result_json={"analysis_type": "clustering", "clusters": {"k": 3, "silhouette_score": 0.5}},
+    )
+
+    received_context = {}
+
+    def fake_generate(context):
+        received_context.update(context)
+        return "Cluster-aware insight.", "gemini"
+
+    monkeypatch.setattr("app.api.ai.ai_service.generate_insight", fake_generate)
+
+    resp = auth_client.post("/api/ai/insights", json={"dataset_id": dataset_id})
+    assert resp.status_code == 200
+    assert resp.json()["insight"] == "Cluster-aware insight."
+    assert received_context.get("clusters") == {"k": 3, "silhouette_score": 0.5}
+
+
+def test_clustering_and_transaction_log_narratives_get_different_cache_keys(db_session):
+    """Both a clustering and a transaction-log narrative can exist for a dataset with no
+    model (model_id=None in both cases) — without a `kind` discriminator in the cache
+    key, they would collide and overwrite each other."""
+    from app.services.context_service import compute_insight_cache_key
+
+    clustering_key = compute_insight_cache_key(None, None, "clustering")
+    transaction_key = compute_insight_cache_key(None, None, "transaction_log")
+    model_key = compute_insight_cache_key(None, None, "model")
+    assert len({clustering_key, transaction_key, model_key}) == 3
+
+
 # ---- gemini_service connection-check TTL cache (passive polling vs. force=True) ----
 
 

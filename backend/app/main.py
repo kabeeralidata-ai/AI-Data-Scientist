@@ -8,6 +8,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api import ai, analysis, auth, auto_analyze, datasets, models, predictions, projects, reports
 from app.core.config import settings
+from app.utils.version import get_git_commit
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("app")
@@ -65,4 +66,4 @@ app.include_router(auto_analyze.router)
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "service": settings.APP_NAME}
+    return {"status": "ok", "service": settings.APP_NAME, "git_commit": get_git_commit()}

@@ -19,9 +19,9 @@ file alone and continue correctly._
 | 3.5 — Segmentation methodology | ✅ Done | `run_clustering_analysis()` rebuilt to standard methodology: behavioral/usage features only (demographics/age describe segments afterward, never form them), skewed columns log-transformed, k chosen from silhouette + GMM BIC + bootstrap stability together — never silhouette alone, never the answer key. This resolved Finding 17 for real: k=4 exactly, 99.9% match rate as a post-hoc diagnostic. See Finding 18. |
 | 4 — Planner | ✅ Done | New `planning_service.build_analysis_plan()` is the single shared entry point EVERY Auto Analyze run calls — previously only transaction-log datasets got an explicit plan object at all; now every dataset type does (`job.result_json["plan"]`), delegating to `transaction_analysis_service`'s existing viability math for transaction logs rather than duplicating it. See Finding 19. Execution engines (train/cluster/transaction-analytics) and the existing pause/resume UX are unchanged — a deliberate, lower-risk scope than a full control-flow rewrite. **Follow-up (Finding 20):** every plan entry now carries a `reason` and a `confidence` level (high/medium/low/none), plus an overall `plan["confidence"]`; segmentation — previously the one path with NO confirmation step at all — now always pauses for confirmation like the other two paths; `confirm-plan` accepts an optional `target_column` to override the plan entirely. Surfaced and fixed a real pre-existing bug along the way: coffee shop's plan reported "27028 days of history" due to a planted invalid date inflating the span calculation. |
 | 5 — Modeling safety | ✅ Done (this round's scope) | `return_prediction_service.py` now runs the SAME leakage detection, baseline comparison, and weak-model flagging `ml_service.train_models()` uses (extracted `compute_baseline_comparison()` as a shared function) — verified against real coffee-shop data: `leakage_warnings=[]`, model F1 0.929 vs. baseline 0.538, `is_weak=False`. See Finding 21. Deliberately scoped narrower than a full rewrite: return-prediction still uses its own training orchestration (a genuinely different data shape — a time-cutoff split over customer-level aggregates, not `train_models()`'s raw-dataframe-in assumption), and does NOT yet save an `MLModel` row, so batch prediction still isn't available for it — the remaining piece of Phase 0 Finding 2, documented as still open. |
-| 6 — Adaptive report | ⬜ Not started | Report sections are hardcoded template branches (model/clusters/transaction_analysis), not truly plan-driven — see Phase 0 finding #3 |
-| 7 — AI reliability | ⬜ Not started | Gemini service is unified and cached for supervised/clustering paths; transaction-log AI narrative does NOT use the same DB cache — see Phase 0 finding #4 |
-| 8 — App consistency | ⬜ Not started | No pipeline versioning exists yet |
+| 6 — Adaptive report | ✅ Done | Business question/KPIs/currency/date-ranges/refund-vs-loss/recommendations/segmentation/RFM-naming/formatting all fixed and verified against real data for all 6 benchmark datasets, both via the benchmark harness and by generating real reports in the live running app. Full benchmark **67/67** (including the long-failing Nov-Dec peak check). See Finding 22. |
+| 7 — AI reliability | ✅ Done | The AI-narrative Retry mechanism and the DB-persisted AIInsightCache now cover all three analysis types (model/clustering/transaction-log), not just the supervised path — see Finding 23. |
+| 8 — App consistency | ✅ Done (this round's scope) | Return-prediction now has a Predictions-tab UI (per-customer probability/risk group, CSV/Excel download) — Finding 21's remaining gap. Stale-server prevention: `dev.py` (always `--reload`), `/api/health` reports the running git commit, Settings shows it, and the benchmark/a new `scripts/check_live_server.py` check it against local HEAD. See Finding 24. |
 | 9 — Final verification | ⬜ Not started | Depends on all above |
 
 ## All 6 benchmark datasets now present (BLOCKER resolved 2026-09-26)
@@ -982,13 +982,136 @@ passes, including the previously-failing "Nov-Dec revenue peak visible."
 
 ## Next step
 
-Phases 1-6 are all done for this round's scope — full benchmark **67/67**, full test suite
-**250/250**. Findings 6-22 are fixed, documented, or explicitly deferred per user decision;
-none is a silent/unknown gap.
+## Phase 7 — AI reliability (2026-09-26)
+
+Phase 0 Finding 4: the DB-persisted `AIInsightCache` table was only ever written to by
+the AITab's own `/api/ai/insights` endpoint — and that endpoint's context-builder only
+knew about a trained model, never clustering or transaction-log results. Separately, the
+Auto Analyze pipeline's OWN baked-in AI narrative (`job.result_json["ai_insight"]`,
+generated once per run for all three analysis types) never touched `AIInsightCache` at
+all, and its "Retry" button (`retry_ai_insights()`) checked for `best_model_id` and
+silently returned early when absent — meaning clustering and transaction-log jobs' Retry
+button did *nothing* if the AI provider was unavailable during the original run: no
+error, no retried call, no way to get a narrative afterward short of re-running the
+entire pipeline.
+
+### Finding 23 — Retry and the persistent insight cache now cover all 3 analysis types — ✅ FIXED
+
+**Fixed**:
+  - `context_service.py` gained `build_cluster_context()` and `build_transaction_context()`
+    — the same shape `build_model_context()` already provided for supervised models — and
+    `compute_insight_cache_key()` gained a `kind` parameter ("model"/"clustering"/
+    "transaction_log") so a dataset with no model can't collide two DIFFERENT narratives
+    (clustering vs. transaction-log) onto the same "no-model" cache key.
+  - `auto_analyze_service.retry_ai_insights()` rewritten to dispatch on the job's
+    `analysis_type` and rebuild whichever context that type actually used (via the shared
+    `build_*_context` helpers, deduplicating what was previously three separate inline
+    `ai_context` dicts across `_continue_training`/`_run_transaction_log_analysis`/
+    `_run_general_analysis`) — clustering and transaction-log jobs can now genuinely be
+    retried, not silently no-op'd.
+  - All three original Auto Analyze code paths (supervised/clustering/transaction-log) and
+    the retry path now persist a successful narrative to `AIInsightCache` via a shared
+    `_persist_insight_cache()` helper — the same DB-backed cache, for every analysis type.
+  - `/api/ai/insights` and `/api/ai/insights/cache` (the AITab's Generate/Regenerate flow)
+    now look up the dataset's latest completed Auto Analyze job and build cluster/
+    transaction-aware context for it — previously they silently built a model-only,
+    cluster-and-revenue-blind context for these two analysis types even though the UI
+    offered the button.
+
+**Verified**: 4 new tests directly exercise the previously-dead paths — retrying a
+clustering job's AI step and a transaction-log job's AI step both now actually invoke the
+AI provider and persist a correctly-keyed cache row (previously they'd have silently
+returned without calling anything); a `compute_insight_cache_key` test confirms
+clustering/transaction-log/model narratives for the same model-less dataset get distinct
+keys; an endpoint test confirms `/api/ai/insights` builds real cluster-aware context for
+a clustering-only project. Full backend suite: **262/262** (258 prior + 4 new). Full
+benchmark: **67/67** (unchanged — this phase only added retry/caching correctness, not a
+behavior change to what the benchmark checks).
+
+## Phase 8 — app consistency (2026-09-26)
+
+Two explicit user requirements for this phase, plus the pre-existing "no pipeline
+versioning" note from Phase 0.
+
+### Finding 24 — Return-prediction UI (Finding 21's remaining gap) — ✅ FIXED
+
+Transaction-log projects' return-prediction results (per-customer probability/risk group)
+were already fully computed and stored (in `job.result_json["transaction_analysis"]
+["return_prediction"]["predictions"]`) but had **no UI at all** — the Predictions tab only
+ever checked for trained `MLModel` rows, and return-prediction deliberately never creates
+one (Finding 21's documented scope decision — the data shape is a time-cutoff split over
+customer-level aggregates, genuinely different from `train_models()`'s raw-dataframe
+assumption). A user with a completed transaction-log analysis saw "No trained models yet"
+even though 1,150 real per-customer predictions existed.
+
+**Fixed**:
+  - New `auto_analyze_service.get_latest_return_predictions()` finds the latest completed
+    transaction-log job for a project and returns its return-prediction dict.
+  - New endpoints `GET /api/predictions/return-predictions/{project_id}` (JSON summary +
+    per-customer list) and `GET /api/predictions/return-predictions/{project_id}/download`
+    (`?format=csv|xlsx`, via `pandas`/`openpyxl` — both already dependencies, no new ones
+    added) in `app/api/predictions.py`.
+  - `PredictionsTab.tsx` now shows a "Customer Return Predictions" card (risk-group
+    badges, a paginated table, CSV/Excel download buttons) instead of "No trained models
+    yet" whenever a project has no model but does have a completed return-prediction
+    analysis.
+
+**Verified against real data**: live-app check against the real coffee-shop project (not
+just synthetic test fixtures) — `total_customers=1150`, `predicted_will_return=705`
+(matching the already-established benchmark answer-key comparison), CSV download
+contained all 1,150 rows (1,151 lines including header), Excel download opened correctly
+via `pandas.read_excel`. 6 new backend tests (JSON shape, CSV content, Excel content,
+unknown-format rejection, 404s for no-analysis and another user's project) + frontend
+`tsc --noEmit` and `npm run lint`/`npm test` all clean (pre-existing, unrelated lint
+findings in `ModelingTab.tsx`/`PredictionsTab.tsx`'s original effect/`auth-context.tsx`
+were confirmed pre-existing via `git stash`, not introduced by this change). **Not
+independently verified in a browser** — no browser-automation tool was available in this
+session; the API responses, TypeScript compilation, and existing frontend test suite were
+all checked, but the rendered page itself was not visually inspected.
+
+### Finding 25 — stale-server prevention — ✅ FIXED
+
+The exact bug that caused a real problem during Phase 6 verification (a long-running dev
+server process, started before a code change, silently kept serving OLD code with no
+error until every report crashed) now has three layers of defense:
+
+  - `backend/dev.py` — the new canonical way to start the dev server, always with
+    `--reload` (`python dev.py`). README's local-dev instructions updated to reference it.
+  - `GET /api/health` now includes `git_commit` (`app/utils/version.py`'s
+    `get_git_commit()`, via `git rev-parse HEAD` against the repo root, `None` if
+    unavailable — e.g. a Docker image built without `.git`). The Settings page's new
+    "System" card shows it.
+  - New `backend/scripts/check_live_server.py` compares a running server's reported
+    commit (via `/api/health`) against the local working tree's `git rev-parse HEAD`,
+    printing a clear warning (and exiting 1 when run standalone) on a mismatch. Wired into
+    `tests/benchmark/run_benchmark.py` as a non-blocking, informational check — the
+    benchmark itself always runs in-process against current code via `TestClient` (see
+    `harness.py`) and can never be stale itself, but a separate long-lived dev server used
+    for live/manual verification often IS running alongside it, and that's exactly the
+    process that can go stale.
+
+**Explicitly scoped narrower than "pipeline versioning"** (Phase 0's original, vaguer
+note): this phase implements exactly the two things asked for — return-prediction UI and
+stale-server prevention — not a general versioning scheme for the cleaning/analysis
+pipeline itself. That broader idea remains open and undefined; nothing here should be
+read as having addressed it.
+
+Full backend suite: **262/262**. Full benchmark: **67/67**. Live-verified: `/api/health`
+and the Settings page's commit display checked against the actual running dev server
+(restarted via `dev.py`), confirmed to report the correct commit and match local HEAD via
+`scripts/check_live_server.py`.
+
+## Next step
+
+Phases 1-8 are all done for this round's scope — full benchmark **67/67**, full test suite
+**262/262**. Findings 6-25 are fixed, documented, or explicitly deferred per user decision;
+none is a silent/unknown gap. Phase 9 (final verification) is the only phase left on the
+original roadmap.
 
 Remaining open, deliberately-deferred items (not required for this round's stated goal):
-  - Return-prediction still doesn't save an `MLModel` row via `prediction_service`, so
-    there's no batch-prediction UI path for it (Finding 21's documented remaining scope).
+  - "Pipeline versioning" in the broader, undefined sense Phase 0 originally gestured at
+    (a general version/fingerprint scheme for the cleaning+analysis pipeline itself, not
+    just the git-commit-level staleness check Finding 25 added) remains open.
 
 The BROADER Phase 2 scope remains open and deliberately deferred (not required for this
 round's stated goal):

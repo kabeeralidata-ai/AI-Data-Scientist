@@ -11,6 +11,7 @@ from app.core.database import get_db
 from app.models.ai_conversation import AIConversation
 from app.models.ai_insight_cache import AIInsightCache
 from app.models.ai_message import AIMessage
+from app.models.auto_analyze_job import AutoAnalyzeJob, AutoAnalyzeJobStatus
 from app.models.dataset import Dataset
 from app.models.user import User
 from app.schemas.ai import (
@@ -22,10 +23,12 @@ from app.schemas.ai import (
 )
 from app.services import ai_service
 from app.services.context_service import (
+    build_cluster_context,
     build_dataset_context,
     build_eda_context,
     build_model_context,
     build_project_context,
+    build_transaction_context,
     compute_insight_cache_key,
 )
 from app.services.dataset_service import find_ungrounded_concepts
@@ -69,6 +72,46 @@ def _cached_insight_row(db: Session, project_id, cache_key: str) -> AIInsightCac
     )
 
 
+def _latest_completed_job(db: Session, dataset_id) -> AutoAnalyzeJob | None:
+    return (
+        db.query(AutoAnalyzeJob)
+        .filter(AutoAnalyzeJob.dataset_id == dataset_id, AutoAnalyzeJob.status == AutoAnalyzeJobStatus.COMPLETED)
+        .order_by(AutoAnalyzeJob.updated_at.desc())
+        .first()
+    )
+
+
+def _build_insight_context_and_kind(db: Session, dataset: Dataset | None, model) -> tuple[dict, str]:
+    """Builds the same verified context AND the `kind` discriminator
+    compute_insight_cache_key needs, for whichever analysis type this dataset/model
+    combination actually represents — a trained model, clustering, or a transaction-log
+    analysis. Previously this only ever built model/dataset/EDA context, so the AITab's
+    Generate/Regenerate button silently produced a generic, cluster-and-revenue-blind
+    insight for clustering and transaction-log projects even though the UI offered it."""
+    context: dict = {}
+    if model:
+        context.update(build_model_context(model))
+    if dataset:
+        context.update(build_dataset_context(dataset))
+        context.update(build_eda_context(db, dataset))
+
+    if model:
+        return context, "model"
+
+    if dataset:
+        job = _latest_completed_job(db, dataset.id)
+        result = (job.result_json or {}) if job else {}
+        analysis_type = result.get("analysis_type")
+        if analysis_type == "transaction_log" and result.get("transaction_analysis"):
+            context.update(build_transaction_context(dataset, result["transaction_analysis"]))
+            return context, "transaction_log"
+        if analysis_type == "clustering" and result.get("clusters"):
+            context.update(build_cluster_context(result["clusters"]))
+            return context, "clustering"
+
+    return context, "dataset"
+
+
 @router.get("/insights/cache", response_model=InsightResponse)
 def get_cached_insight(
     dataset_id: uuid.UUID | None = None,
@@ -84,7 +127,8 @@ def get_cached_insight(
     if not dataset and not model:
         raise HTTPException(status_code=400, detail="Provide a dataset_id or model_id.")
 
-    cache_key = compute_insight_cache_key(dataset, model)
+    _, kind = _build_insight_context_and_kind(db, dataset, model)
+    cache_key = compute_insight_cache_key(dataset, model, kind)
     cached = _cached_insight_row(db, project_id, cache_key)
     if not cached:
         raise HTTPException(status_code=404, detail="No cached insight for this dataset/model version yet.")
@@ -105,14 +149,9 @@ def generate_insights(payload: InsightRequest, db: Session = Depends(get_db), cu
     if not dataset and not model:
         raise HTTPException(status_code=400, detail="Provide a dataset_id or model_id to generate insights.")
 
-    context: dict = {}
-    if model:
-        context.update(build_model_context(model))
-    if dataset:
-        context.update(build_dataset_context(dataset))
-        context.update(build_eda_context(db, dataset))
+    context, kind = _build_insight_context_and_kind(db, dataset, model)
 
-    cache_key = compute_insight_cache_key(dataset, model)
+    cache_key = compute_insight_cache_key(dataset, model, kind)
 
     if not payload.force:
         cached = _cached_insight_row(db, project_id, cache_key)

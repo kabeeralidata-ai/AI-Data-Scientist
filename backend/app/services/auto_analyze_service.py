@@ -4,6 +4,7 @@ import logging
 from sqlalchemy.orm.attributes import flag_modified
 
 from app.core.database import SessionLocal
+from app.models.ai_insight_cache import AIInsightCache
 from app.models.auto_analyze_job import AutoAnalyzeJob, AutoAnalyzeJobStatus
 from app.models.dataset import Dataset
 from app.models.ml_model import MLModel
@@ -21,7 +22,14 @@ from app.services import (
     transaction_analysis_service,
 )
 from app.services.cleaning_service import flag_invalid_dates
-from app.services.context_service import build_dataset_context, build_eda_context, build_model_context
+from app.services.context_service import (
+    build_cluster_context,
+    build_dataset_context,
+    build_eda_context,
+    build_model_context,
+    build_transaction_context,
+    compute_insight_cache_key,
+)
 from app.services.customer_analytics_service import pick_column
 from app.utils.validators import DatasetValidationError
 
@@ -42,6 +50,62 @@ STEP_DEFINITIONS = [
 
 def _initial_steps() -> list[dict]:
     return [{"key": k, "label": label, "status": "pending", "detail": None} for k, label in STEP_DEFINITIONS]
+
+
+def _persist_insight_cache(db, project_id, dataset, model, kind: str, insight: str, provider: str | None) -> None:
+    """Persists a successfully-generated AI narrative to the same DB-backed cache the
+    AITab's Generate/Regenerate flow reads from (AIInsightCache) — so a page reload, or
+    AITab hydrating for the first time, can show it without spending another AI request,
+    for every analysis type (model/clustering/transaction_log), not just the supervised
+    path that historically was the only one wired up to any persistent cache."""
+    cache_key = compute_insight_cache_key(dataset, model, kind)
+    existing = (
+        db.query(AIInsightCache)
+        .filter(AIInsightCache.project_id == project_id, AIInsightCache.cache_key == cache_key)
+        .first()
+    )
+    if existing:
+        existing.insight = insight
+        existing.ai_available = True
+        existing.provider = provider
+        existing.dataset_id = dataset.id if dataset else None
+        existing.model_id = model.id if model else None
+    else:
+        db.add(
+            AIInsightCache(
+                project_id=project_id,
+                dataset_id=dataset.id if dataset else None,
+                model_id=model.id if model else None,
+                cache_key=cache_key,
+                insight=insight,
+                ai_available=True,
+                provider=provider,
+            )
+        )
+
+
+def get_latest_return_predictions(db, project_id) -> dict | None:
+    """Finds the most recent completed Auto Analyze job for this project that ran a
+    transaction-log return-prediction analysis, and returns its return_prediction dict —
+    per-customer probability/risk group plus summary stats — or None if no such analysis
+    has completed for this project. Backs the Predictions tab's per-customer view and CSV/
+    Excel download for transaction-log projects, which previously had no UI at all (Phase
+    0 Finding 2's documented remaining gap: return-prediction never saved an MLModel row,
+    so it never showed up anywhere the Predictions tab looked)."""
+    jobs = (
+        db.query(AutoAnalyzeJob)
+        .filter(AutoAnalyzeJob.project_id == project_id, AutoAnalyzeJob.status == AutoAnalyzeJobStatus.COMPLETED)
+        .order_by(AutoAnalyzeJob.updated_at.desc())
+        .all()
+    )
+    for job in jobs:
+        result = job.result_json or {}
+        if result.get("analysis_type") != "transaction_log":
+            continue
+        return_prediction = (result.get("transaction_analysis") or {}).get("return_prediction")
+        if return_prediction:
+            return return_prediction
+    return None
 
 
 def create_job(db, project_id, dataset_id, force_target_reselection: bool = False) -> AutoAnalyzeJob:
@@ -199,26 +263,50 @@ def confirm_plan_and_resume(job_id, target_column_override: str | None = None) -
 
 def retry_ai_insights(job_id) -> None:
     """Re-attempts just the AI insights step of an already-completed job without
-    re-running the rest of the pipeline — backs the Retry button shown when Ollama was
-    unavailable during the original run."""
+    re-running the rest of the pipeline — backs the Retry button shown when the AI
+    provider was unavailable during the original run. Works for all three analysis
+    types (supervised model, clustering, transaction-log) by rebuilding whichever
+    context that type's original run used, via the same shared build_*_context helpers —
+    previously this only worked for the supervised path (a job with best_model_id) and
+    silently did nothing for clustering/transaction-log jobs, so their Retry button was
+    dead with no error shown."""
     db = SessionLocal()
     try:
         job = db.query(AutoAnalyzeJob).filter(AutoAnalyzeJob.id == job_id).first()
-        if not job or not job.result_json or not job.result_json.get("best_model_id"):
+        if not job or not job.result_json:
             return
 
         dataset = db.query(Dataset).filter(Dataset.id == job.dataset_id).first()
-        best_model = db.query(MLModel).filter(MLModel.id == job.result_json["best_model_id"]).first()
-        if not dataset or not best_model:
+        if not dataset:
             return
+
+        analysis_type = job.result_json.get("analysis_type")
+        best_model = None
+        context: dict = {}
+        kind = "dataset"
+
+        if job.result_json.get("best_model_id"):
+            best_model = db.query(MLModel).filter(MLModel.id == job.result_json["best_model_id"]).first()
+            if not best_model:
+                return
+            context.update(build_dataset_context(dataset))
+            context.update(build_eda_context(db, dataset))
+            context.update(build_model_context(best_model))
+            kind = "model"
+        elif analysis_type == "transaction_log" and job.result_json.get("transaction_analysis"):
+            context.update(build_transaction_context(dataset, job.result_json["transaction_analysis"]))
+            kind = "transaction_log"
+        elif analysis_type == "clustering" and job.result_json.get("clusters"):
+            context.update(build_dataset_context(dataset))
+            context.update(build_eda_context(db, dataset))
+            context.update(build_cluster_context(job.result_json["clusters"]))
+            kind = "clustering"
+        else:
+            context.update(build_dataset_context(dataset))
+            context.update(build_eda_context(db, dataset))
 
         _set_step(job, "ai_insights", "running")
         db.commit()
-
-        context: dict = {}
-        context.update(build_dataset_context(dataset))
-        context.update(build_eda_context(db, dataset))
-        context.update(build_model_context(best_model))
 
         result = copy.deepcopy(job.result_json)
         try:
@@ -227,6 +315,7 @@ def retry_ai_insights(job_id) -> None:
             result["ai_available"] = True
             result["ai_provider"] = provider
             result["ai_reason"] = None
+            _persist_insight_cache(db, job.project_id, dataset, best_model, kind, insight, provider)
             _set_step(job, "ai_insights", "completed", f"AI narrative generated ({provider}).")
         except ai_service.AIUnavailableError as exc:
             result["ai_insight"] = None
@@ -507,6 +596,7 @@ def _continue_training(db, job: AutoAnalyzeJob, dataset: Dataset, project: Proje
             result["ai_available"] = True
             result["ai_provider"] = provider
             result["ai_reason"] = None
+            _persist_insight_cache(db, project.id, dataset, best_model, "model", insight, provider)
             _set_step(job, "ai_insights", "completed", f"AI narrative generated ({provider}).")
         except ai_service.AIUnavailableError as exc:
             result["ai_insight"] = None
@@ -613,24 +703,14 @@ def _run_transaction_log_analysis(db, job: AutoAnalyzeJob, dataset: Dataset, pro
         # multiple Gemini calls / rate limits) rather than one call per analysis.
         _set_step(job, "ai_insights", "running")
         db.commit()
-        ai_context: dict = {}
-        ai_context.update(build_dataset_context(dataset))
-        if analysis.get("revenue_analytics"):
-            ai_context["revenue_analytics"] = analysis["revenue_analytics"]
-        if analysis.get("customer_rfm"):
-            ai_context["customer_segments"] = analysis["customer_rfm"]["segments"]
-        if analysis.get("return_prediction"):
-            ai_context["return_prediction"] = {
-                k: v for k, v in analysis["return_prediction"].items() if k != "predictions"
-            }
-        if analysis.get("sales_forecasting"):
-            ai_context["sales_forecast"] = analysis["sales_forecasting"]
+        ai_context = build_transaction_context(dataset, analysis)
         try:
             insight, provider = ai_service.generate_insight(ai_context)
             result["ai_insight"] = insight
             result["ai_available"] = True
             result["ai_provider"] = provider
             result["ai_reason"] = None
+            _persist_insight_cache(db, project.id, dataset, None, "transaction_log", insight, provider)
             _set_step(job, "ai_insights", "completed", f"AI narrative generated in a single call ({provider}).")
         except ai_service.AIUnavailableError as exc:
             result["ai_insight"] = None
@@ -732,13 +812,15 @@ def _run_general_analysis(
         context.update(build_dataset_context(dataset))
         context.update(build_eda_context(db, dataset))
         if clusters:
-            context["clusters"] = clusters
+            context.update(build_cluster_context(clusters))
+        insight_kind = "clustering" if clusters else "dataset"
         try:
             insight, provider = ai_service.generate_insight(context)
             result["ai_insight"] = insight
             result["ai_available"] = True
             result["ai_provider"] = provider
             result["ai_reason"] = None
+            _persist_insight_cache(db, project.id, dataset, None, insight_kind, insight, provider)
             _set_step(job, "ai_insights", "completed", f"AI narrative generated ({provider}).")
         except ai_service.AIUnavailableError as exc:
             result["ai_insight"] = None

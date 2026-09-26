@@ -161,7 +161,8 @@ pip install -r requirements.txt
 cp ../.env.example .env        # edit DATABASE_URL to point at your local Postgres
 
 alembic upgrade head
-uvicorn app.main:app --reload
+python dev.py                  # always runs with --reload — see dev.py's docstring for why
+# equivalently: uvicorn app.main:app --reload
 ```
 
 Backend runs at http://localhost:8000 (interactive docs at `/docs`).

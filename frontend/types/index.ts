@@ -330,6 +330,27 @@ export interface BatchPredictionResult {
   results: Record<string, unknown>[];
 }
 
+export interface ReturnPredictionCustomer {
+  customer_id: string;
+  predicted_return: boolean;
+  return_probability: number;
+  risk_group: string;
+}
+
+export interface ReturnPredictionsResult {
+  available: boolean;
+  reason?: string | null;
+  window_days?: number | null;
+  total_customers?: number | null;
+  predicted_will_return?: number | null;
+  predicted_will_not_return?: number | null;
+  predicted_uncertain?: number | null;
+  risk_bands?: Record<string, string> | null;
+  risk_group_counts?: Record<string, number> | null;
+  holdout_metrics?: Record<string, number> | null;
+  customers: ReturnPredictionCustomer[];
+}
+
 export type AIStatusReason =
   | "ok"
   | "unreachable"

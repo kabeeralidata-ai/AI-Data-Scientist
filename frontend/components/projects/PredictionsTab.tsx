@@ -3,12 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Database, Download, Gauge } from "lucide-react";
 import { useModel, useProjectModels } from "@/hooks/useModels";
-import { useBatchPredict, usePredict } from "@/hooks/usePredictions";
+import { useBatchPredict, useReturnPredictions, usePredict, downloadReturnPredictions } from "@/hooks/usePredictions";
 import { useDatasetRows } from "@/hooks/useDatasets";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/Card";
 import { Select, Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { Alert } from "@/components/ui/Alert";
+import { Badge } from "@/components/ui/Badge";
 import { Modal } from "@/components/ui/Modal";
 import { EmptyState, LoadingState } from "@/components/ui/States";
 import { TableContainer, Thead, Tr, Th, Tbody, Td } from "@/components/ui/Table";
@@ -16,6 +17,7 @@ import { FileUploader } from "@/components/datasets/FileUploader";
 import { getErrorMessage } from "@/lib/api";
 import { useToast } from "@/lib/toast-context";
 import { titleCase } from "@/lib/utils";
+import type { ReturnPredictionsResult } from "@/types";
 
 function toCsv(rows: Record<string, unknown>[]): string {
   if (rows.length === 0) return "";
@@ -43,6 +45,91 @@ function downloadCsv(filename: string, csv: string) {
   URL.revokeObjectURL(url);
 }
 
+const RISK_GROUP_BADGE: Record<string, "success" | "warning" | "danger" | "default"> = {
+  "Likely to return": "success",
+  "Uncertain": "warning",
+  "At risk of not returning": "danger",
+};
+
+function ReturnPredictionsCard({ projectId, data }: { projectId: string; data: ReturnPredictionsResult }) {
+  const { showToast } = useToast();
+  const [downloading, setDownloading] = useState<"csv" | "xlsx" | null>(null);
+
+  const handleDownload = async (format: "csv" | "xlsx") => {
+    setDownloading(format);
+    try {
+      await downloadReturnPredictions(projectId, format);
+    } catch (error) {
+      showToast(getErrorMessage(error, "We could not download this file."), "error");
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const customers = data.customers ?? [];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Customer Return Predictions</CardTitle>
+        <CardDescription>
+          {data.total_customers} customer(s) — predicted to return within {data.window_days} day(s). Not a trained
+          model in the usual sense (this is a transaction-log analysis), so predictions are grouped by risk band
+          rather than entered feature-by-feature.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        {data.risk_group_counts && (
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(data.risk_group_counts).map(([group, count]) => (
+              <Badge key={group} variant={RISK_GROUP_BADGE[group] ?? "default"}>
+                {group}: {count}
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => handleDownload("csv")} isLoading={downloading === "csv"}>
+            <Download className="h-4 w-4" /> Download CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => handleDownload("xlsx")} isLoading={downloading === "xlsx"}>
+            <Download className="h-4 w-4" /> Download Excel
+          </Button>
+        </div>
+
+        <TableContainer>
+          <Thead>
+            <Tr>
+              <Th>Customer ID</Th>
+              <Th>Predicted to return</Th>
+              <Th>Probability</Th>
+              <Th>Risk group</Th>
+            </Tr>
+          </Thead>
+          <Tbody>
+            {customers.slice(0, 50).map((c) => (
+              <Tr key={c.customer_id}>
+                <Td>{c.customer_id}</Td>
+                <Td>{c.predicted_return ? "Yes" : "No"}</Td>
+                <Td>{(c.return_probability * 100).toFixed(1)}%</Td>
+                <Td>
+                  <Badge variant={RISK_GROUP_BADGE[c.risk_group] ?? "default"}>{c.risk_group}</Badge>
+                </Td>
+              </Tr>
+            ))}
+          </Tbody>
+        </TableContainer>
+        {customers.length > 50 && (
+          <p className="text-xs text-muted">
+            Showing the first 50 of {customers.length} customers — download the CSV or Excel file for the full list.
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export function PredictionsTab({
   projectId,
   selectedModelId,
@@ -56,6 +143,7 @@ export function PredictionsTab({
   const { data: model, isLoading: modelLoading } = useModel(selectedModelId ?? undefined);
   const predict = usePredict();
   const batchPredict = useBatchPredict();
+  const returnPredictions = useReturnPredictions(projectId);
   const { showToast } = useToast();
 
   const [values, setValues] = useState<Record<string, string>>({});
@@ -81,6 +169,9 @@ export function PredictionsTab({
   }, [selectedModelId, schema.length]);
 
   if (!models || models.length === 0) {
+    if (returnPredictions.data?.available) {
+      return <ReturnPredictionsCard projectId={projectId} data={returnPredictions.data} />;
+    }
     return <EmptyState title="No trained models yet" description="Train a model in the Modeling tab before making predictions." />;
   }
 
