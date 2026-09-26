@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 
 from app.models.analysis_run import AnalysisRun
 from app.models.dataset import Dataset
+from app.services.cleaning_service import flag_invalid_dates
+from app.services.data_understanding_service import classify_columns
 from app.services.dataset_service import detect_semantic_type, load_dataframe, score_target_candidates
 
 
@@ -231,11 +233,35 @@ def _pick_rate_class(vc: pd.Series) -> tuple[str, bool]:
     return vc.index[0], False
 
 
-def _select_kpis(df: pd.DataFrame, profile: dict, description: str | None) -> list[dict]:
+_PERCENT_NAME_TOKENS = ("pct", "percent", "percentage", "rate", "share", "ratio")
+
+
+def _looks_like_percentage(col_name: str, series: pd.Series) -> bool:
+    """A column whose NAME suggests a percentage/rate/share AND whose actual values fall
+    within a plausible percentage range (0-100, or 0-1 for a fraction) — both signals
+    together, so a genuine count column that happens to say 'rate' in its name (rare) but
+    holds values in the thousands isn't misclassified."""
+    tokens = str(col_name).lower().replace("-", "_").split("_")
+    if not any(t in _PERCENT_NAME_TOKENS for t in tokens):
+        return False
+    if len(series) == 0:
+        return False
+    return bool(((series >= 0) & (series <= 100)).all())
+
+
+def _select_kpis(
+    df: pd.DataFrame, profile: dict, description: str | None, column_roles: dict[str, dict] | None = None
+) -> list[dict]:
     """Picks 4 KPIs generically: total rows, then the top-scored target-like column
     (reusing the same outcome-scoring heuristic used for Auto Analyze's target
     detection — a business-outcome column deserves a headline KPI regardless of
-    dataset), then other numeric totals, falling back to data-quality counts."""
+    dataset), then other numeric columns, falling back to data-quality counts.
+
+    A "Total X" KPI is only meaningful for a column role that's genuinely summable —
+    money (a real total revenue/cost) or quantity (a real total units/orders). Summing
+    an age, a price-per-unit, a rating, or a percentage produces a number with no
+    business meaning (e.g. "Total Age: 48,213"), so those get an AVERAGE instead —
+    and a percentage-shaped column is formatted as a percent, not a raw number."""
     kpis: list[dict] = [{"key": "total_rows", "label": "Total Rows", "value": float(len(df)), "format": "number"}]
 
     used_columns: set[str] = set()
@@ -247,12 +273,13 @@ def _select_kpis(df: pd.DataFrame, profile: dict, description: str | None) -> li
             used_columns.add(col)
             if top["problem_type_hint"] == "regression":
                 series = pd.to_numeric(df[col], errors="coerce").dropna()
+                role = (column_roles or {}).get(col, {}).get("role")
                 kpis.append(
                     {
                         "key": f"avg_{col}",
                         "label": f"Average {_label(col)}",
                         "value": float(series.mean()) if len(series) else 0.0,
-                        "format": "number",
+                        "format": "money" if role == "money" else "number",
                         "source_column": col,
                         "agg": "mean",
                     }
@@ -284,16 +311,43 @@ def _select_kpis(df: pd.DataFrame, profile: dict, description: str | None) -> li
         if len(series) == 0:
             continue
         used_columns.add(col)
-        kpis.append(
-            {
-                "key": f"total_{col}",
-                "label": f"Total {_label(col)}",
-                "value": float(series.sum()),
-                "format": "number",
-                "source_column": col,
-                "agg": "sum",
-            }
-        )
+        role = (column_roles or {}).get(col, {}).get("role")
+
+        if role in ("money", "quantity"):
+            kpis.append(
+                {
+                    "key": f"total_{col}",
+                    "label": f"Total {_label(col)}",
+                    "value": float(series.sum()),
+                    "format": "money" if role == "money" else "number",
+                    "source_column": col,
+                    "agg": "sum",
+                }
+            )
+        elif _looks_like_percentage(col, series):
+            kpis.append(
+                {
+                    "key": f"avg_{col}",
+                    "label": f"Average {_label(col)}",
+                    "value": float(series.mean()) / 100,
+                    "format": "percent",
+                    "source_column": col,
+                    "agg": "mean",
+                }
+            )
+        else:
+            # Not a real business total (an age, a rating, a per-unit price, ...) —
+            # an average is the meaningful summary; a sum would have no business meaning.
+            kpis.append(
+                {
+                    "key": f"avg_{col}",
+                    "label": f"Average {_label(col)}",
+                    "value": float(series.mean()),
+                    "format": "number",
+                    "source_column": col,
+                    "agg": "mean",
+                }
+            )
 
     if len(kpis) < 4:
         kpis.append({"key": "missing_cells", "label": "Missing Cells", "value": float(int(df.isna().sum().sum())), "format": "number"})
@@ -410,7 +464,9 @@ def _select_rating_breakdown(df: pd.DataFrame, profile: dict) -> dict | None:
     return None
 
 
-def _select_time_trend(df: pd.DataFrame, profile: dict) -> dict | None:
+def _select_time_trend(
+    df: pd.DataFrame, profile: dict, description: str | None = None, column_roles: dict[str, dict] | None = None
+) -> dict | None:
     date_cols = _datetime_columns_from_profile(profile)
     if not date_cols:
         return None
@@ -418,7 +474,10 @@ def _select_time_trend(df: pd.DataFrame, profile: dict) -> dict | None:
     if date_col not in df.columns:
         return None
     parsed = pd.to_datetime(df[date_col], errors="coerce")
-    temp = df.assign(_parsed_date=parsed).dropna(subset=["_parsed_date"])
+    # Excludes invalid/implausible dates (see flag_invalid_dates) so a single planted
+    # outlier date doesn't stretch the trend chart's x-axis across years of empty buckets.
+    invalid = flag_invalid_dates(df[date_col])
+    temp = df.assign(_parsed_date=parsed)[~invalid].dropna(subset=["_parsed_date"])
     if len(temp) == 0:
         return None
 
@@ -429,18 +488,45 @@ def _select_time_trend(df: pd.DataFrame, profile: dict) -> dict | None:
     labels = [str(idx.date()) for idx in row_counts.index]
     series = [{"name": "Row Count", "values": [int(v) for v in row_counts.values]}]
 
-    numeric_cols = [c for c in _numeric_columns_from_profile(profile) if c in df.columns]
-    if numeric_cols:
+    # Prefer the business-outcome/target column (when one is confidently identifiable) for
+    # the trend's secondary series and peak-month finding — a generic "first numeric
+    # column in upload order" would otherwise chart/narrate whatever happened to be
+    # uploaded first, not the metric that actually matters (e.g. sales_amount, not an
+    # arbitrary adjacent numeric column).
+    numeric_cols = [c for c in _numeric_columns_from_profile(profile) if c in temp.columns]
+    candidates = score_target_candidates(profile, description)
+    metric_col = None
+    if candidates and candidates[0]["column"] in numeric_cols:
+        metric_col = candidates[0]["column"]
+    elif numeric_cols:
         metric_col = numeric_cols[0]
-        metric_series = grouped[metric_col].mean()
+
+    peak_month = None
+    if metric_col:
+        metric_mean = grouped[metric_col].mean()
         series.append(
             {
                 "name": f"Average {_label(metric_col)}",
-                "values": [round(float(v), 4) if pd.notna(v) else 0.0 for v in metric_series.values],
+                "values": [round(float(v), 4) if pd.notna(v) else 0.0 for v in metric_mean.values],
             }
         )
+        # The PEAK month is about total activity in that month (a real, sum-based
+        # business peak, e.g. "November-December is when total sales are highest"), not
+        # the per-row average — a month with fewer, larger orders could have a high mean
+        # but low total, which isn't what "peak month" means in a revenue/business sense.
+        monthly_sum = grouped[metric_col].sum()
+        if len(monthly_sum) > 0 and monthly_sum.notna().any():
+            peak_idx = monthly_sum.idxmax()
+            role = (column_roles or {}).get(metric_col, {}).get("role")
+            peak_month = {
+                "column": metric_col,
+                "label": _label(metric_col),
+                "month": peak_idx.strftime("%B %Y"),
+                "value": round(float(monthly_sum.loc[peak_idx]), 2),
+                "format": "money" if role == "money" else "number",
+            }
 
-    return {"date_column": date_col, "labels": labels, "series": series}
+    return {"date_column": date_col, "labels": labels, "series": series, "peak_month": peak_month}
 
 
 def _build_filter_options(full_df: pd.DataFrame, profile: dict) -> dict:
@@ -486,7 +572,8 @@ def run_filtered_eda(
 
     filtered_df = _apply_filters(full_df, categorical_filters, date_filters)
 
-    kpis = _select_kpis(filtered_df, profile, description)
+    column_roles = classify_columns(full_df, profile, use_gemini=False)
+    kpis = _select_kpis(filtered_df, profile, description, column_roles)
     date_cols = _datetime_columns_from_profile(profile)
     primary_date_col = date_cols[0] if date_cols else None
     for kpi in kpis:
@@ -505,7 +592,7 @@ def run_filtered_eda(
         "donut_charts": donut_charts,
         "bar_charts": bar_charts,
         "rating_breakdown": _select_rating_breakdown(filtered_df, profile),
-        "time_trend": _select_time_trend(filtered_df, profile),
+        "time_trend": _select_time_trend(filtered_df, profile, description, column_roles),
         "filter_options": _build_filter_options(full_df, profile),
     }
 

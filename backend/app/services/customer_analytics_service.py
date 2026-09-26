@@ -9,11 +9,17 @@ import pandas as pd
 
 from app.services.cleaning_service import WALK_IN_LABEL
 
+# "At Risk" was renamed to "Slipping Away" (a recognized RFM/lifecycle-marketing term) —
+# a report that also runs return_prediction_service shows a DIFFERENT, ML-predicted
+# "At risk of not returning" group computed from a trained classifier on recent behavior,
+# not this RFM heuristic on historical recency/frequency; the near-identical wording
+# previously made two genuinely different, independently-computed groups look like the
+# same thing.
 RFM_SEGMENTS = {
     "champions": "Champions",
     "loyal": "Loyal Customers",
     "new": "New Customers",
-    "at_risk": "At Risk",
+    "at_risk": "Slipping Away",
     "lost": "Lost",
     "needs_attention": "Needs Attention",
 }

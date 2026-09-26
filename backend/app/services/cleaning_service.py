@@ -135,7 +135,7 @@ def _strip_units_from_numeric_like_columns(df: pd.DataFrame, log: dict) -> pd.Da
     suffix. Only converts a column when the vast majority of its non-null values match the
     pattern, so a genuinely categorical column full of short strings isn't misfired on.
     """
-    converted: dict[str, float] = {}
+    converted: dict[str, dict] = {}
     for col in df.columns:
         if pd.api.types.is_numeric_dtype(df[col]):
             continue
@@ -159,8 +159,14 @@ def _strip_units_from_numeric_like_columns(df: pd.DataFrame, log: dict) -> pd.Da
             except ValueError:
                 return None
 
+        # A REAL example from this column's own data (never a hardcoded, possibly-wrong
+        # example from a different dataset) — the first non-null raw value that actually
+        # matched the unit pattern, for the report to cite honestly.
+        matched_values = non_null[matches]
+        example = str(matched_values.iloc[0]) if len(matched_values) else None
+
         df[col] = series.apply(_extract)
-        converted[str(col)] = round(match_rate, 4)
+        converted[str(col)] = {"match_rate": round(match_rate, 4), "example": example}
 
     if converted:
         log["unit_stripped_columns"] = converted
@@ -234,10 +240,21 @@ def _detect_impossible_negative_values(df: pd.DataFrame, column_roles: dict[str,
     return found
 
 
+# A negative value in a column named like a NET/computed financial outcome (profit,
+# margin, ...) represents a real LOSS — the business spent more than it earned on that
+# row. A negative value in a column named like a gross transaction amount (total, price,
+# quantity, ...) represents a REFUND/RETURN — money or goods flowing back. Same
+# vocabulary as ml_service.DERIVED_METRIC_NAME_HINTS (a computed-outcome concept), kept
+# local here rather than importing ml_service just for one name list.
+NET_OUTCOME_NAME_HINTS = ("profit", "margin", "markup", "commission", "surplus", "net")
+
+
 def _detect_refunds(df: pd.DataFrame, column_roles: dict[str, dict] | None) -> dict[str, dict]:
     """For each negative-capable (money/quantity) column that actually has negative
-    values, reports the count and total — surfaced as real refund/return signal, never
-    silently dropped or corrected away like the impossible-negative-value case above."""
+    values, reports the count and total — surfaced as real refund/loss signal (which
+    framing depends on what the column actually represents, see NET_OUTCOME_NAME_HINTS),
+    never silently dropped or corrected away like the impossible-negative-value case
+    above."""
     refunds: dict[str, dict] = {}
     for col in _negative_capable_columns(column_roles):
         if col not in df.columns or not pd.api.types.is_numeric_dtype(df[col]):
@@ -246,7 +263,9 @@ def _detect_refunds(df: pd.DataFrame, column_roles: dict[str, dict] | None) -> d
         count = int(negative_mask.sum())
         if count == 0:
             continue
-        refunds[col] = {"count": count, "total": float(df.loc[negative_mask, col].sum())}
+        tokens = tokenize_column_name(str(col))
+        kind = "loss" if any(h in tokens for h in NET_OUTCOME_NAME_HINTS) else "refund"
+        refunds[col] = {"count": count, "total": float(df.loc[negative_mask, col].sum()), "kind": kind}
     return refunds
 
 
@@ -414,6 +433,7 @@ def analyze_quality(dataset: Dataset, column_roles: dict[str, dict] | None = Non
     implausible_large_values = _detect_implausible_large_values(df)
     refunds = _detect_refunds(df, column_roles)
     for col, info in refunds.items():
+        is_loss = info.get("kind") == "loss"
         issues.append(
             {
                 "id": f"refunds::{col}",
@@ -422,12 +442,20 @@ def analyze_quality(dataset: Dataset, column_roles: dict[str, dict] | None = Non
                 "severity": "low",
                 "message": (
                     f"'{col}' has {info['count']} negative value(s) totaling {round(info['total'], 2):,} — "
-                    "these are refunds/returns, not data-entry errors, and are kept as-is."
+                    + (
+                        "these are real losses (cost exceeded revenue on these rows), not data-entry errors, and are kept as-is."
+                        if is_loss
+                        else "these are refunds/returns, not data-entry errors, and are kept as-is."
+                    )
                 ),
                 "affected_count": info["count"],
                 "recommended_fix": {
-                    "action": "keep_as_refunds",
-                    "reason": "Negative quantities/totals in transaction data represent real refunds — cleaning never removes or corrects them.",
+                    "action": "keep_as_losses" if is_loss else "keep_as_refunds",
+                    "reason": (
+                        "A negative value here represents a real business loss, not an error — cleaning never removes or corrects it."
+                        if is_loss
+                        else "Negative quantities/totals in transaction data represent real refunds — cleaning never removes or corrects them."
+                    ),
                 },
             }
         )

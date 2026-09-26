@@ -11,6 +11,7 @@ from app.services import forecast_service
 from app.services import return_prediction_service as rps
 from app.services.cleaning_service import WALK_IN_LABEL, flag_invalid_dates
 from app.services.customer_analytics_service import pick_column
+from app.utils.formatting import detect_currency_from_column_name, format_money
 
 
 def build_analysis_plan(column_roles: dict[str, dict], dataset_type_info: dict, df: pd.DataFrame) -> dict:
@@ -201,11 +202,40 @@ def run_full_transaction_analysis(df: pd.DataFrame, column_roles: dict[str, dict
             df, timestamp_col, money_col, customer_col, periods_weeks=13
         )
 
-    result["recommendations"] = generate_rule_based_recommendations(result, customer_table)
+    money_col = pick_column(column_roles, "money", name_prefer=("total",))
+    currency = detect_currency_from_column_name(money_col)
+    result["recommendations"] = generate_rule_based_recommendations(result, customer_table, currency)
     return result
 
 
-def generate_rule_based_recommendations(analysis: dict, customer_table: pd.DataFrame | None) -> list[str]:
+def _peak_hour_range(revenue_by_hour: list[dict], threshold_fraction: float = 0.7) -> tuple[str, float]:
+    """The contiguous window of hours around the single peak hour whose revenue is within
+    `threshold_fraction` of the peak — a natural "peak window" (e.g. "7 PM-11 PM") rather
+    than one artificially precise hour that overstates how sharp a real peak actually is."""
+    by_hour = {r["hour"]: r["revenue"] for r in revenue_by_hour}
+    peak_hour = max(by_hour, key=by_hour.get)
+    peak_value = by_hour[peak_hour]
+    threshold = peak_value * threshold_fraction
+
+    start = end = peak_hour
+    while (start - 1) in by_hour and by_hour[start - 1] >= threshold:
+        start -= 1
+    while (end + 1) in by_hour and by_hour[end + 1] >= threshold:
+        end += 1
+
+    def _fmt(h: int) -> str:
+        period = "AM" if h < 12 else "PM"
+        display_h = h % 12
+        display_h = 12 if display_h == 0 else display_h
+        return f"{display_h} {period}"
+
+    label = _fmt(start) if start == end else f"{_fmt(start)}–{_fmt(end)}"
+    return label, peak_value
+
+
+def generate_rule_based_recommendations(
+    analysis: dict, customer_table: pd.DataFrame | None, currency: str | None = None
+) -> list[str]:
     """Deterministic, non-AI recommendations from verified findings already computed
     above — always available regardless of Gemini's status, since none of this depends
     on it. Every sentence cites a real, already-computed number; nothing here is
@@ -217,14 +247,14 @@ def generate_rule_based_recommendations(analysis: dict, customer_table: pd.DataF
         if revenue.get("revenue_by_category"):
             top = revenue["revenue_by_category"][0]
             recs.append(
-                f"'{top['label']}' is the top revenue category at {top['revenue']:,.0f} — "
+                f"'{top['label']}' is the top revenue category at {format_money(top['revenue'], currency)} — "
                 "consider prioritizing inventory, staffing, and promotions around it."
             )
         if revenue.get("revenue_by_hour"):
-            peak = max(revenue["revenue_by_hour"], key=lambda r: r["revenue"])
+            peak_label, peak_value = _peak_hour_range(revenue["revenue_by_hour"])
             recs.append(
-                f"Peak revenue hour is {peak['hour']}:00 ({peak['revenue']:,.0f}) — align staffing levels "
-                "and time-limited promotions with this window."
+                f"Peak revenue window is {peak_label} ({format_money(peak_value, currency)} in that single "
+                "busiest hour) — align staffing levels and time-limited promotions with this window."
             )
         refund_rate = revenue.get("refund_rate_pct")
         if refund_rate is not None:
@@ -242,15 +272,17 @@ def generate_rule_based_recommendations(analysis: dict, customer_table: pd.DataF
     rfm = analysis.get("customer_rfm")
     if rfm and rfm.get("segments"):
         segments = rfm["segments"]
-        at_risk_count = sum(s["customer_count"] for s in segments if s["segment"] in ("At Risk", "Lost"))
-        at_risk_value = sum(s["total_monetary"] for s in segments if s["segment"] in ("At Risk", "Lost"))
+        at_risk_segments = (cas.RFM_SEGMENTS["at_risk"], cas.RFM_SEGMENTS["lost"])
+        at_risk_count = sum(s["customer_count"] for s in segments if s["segment"] in at_risk_segments)
+        at_risk_value = sum(s["total_monetary"] for s in segments if s["segment"] in at_risk_segments)
         total_customers = rfm["total_identified_customers"]
         if at_risk_count and total_customers:
             pct = round(at_risk_count / total_customers * 100, 1)
             recs.append(
-                f"{at_risk_count} customers ({pct}% of identified customers) are in the 'At Risk' or 'Lost' "
-                f"RFM segments, representing {at_risk_value:,.0f} in historical spend — a targeted "
-                "re-engagement offer to this group could recover meaningful revenue."
+                f"{at_risk_count} customers ({pct}% of identified customers) are in the '{at_risk_segments[0]}' or "
+                f"'{at_risk_segments[1]}' RFM segments (historical purchase pattern, not a return-likelihood "
+                f"prediction), representing {format_money(at_risk_value, currency)} in historical spend — a "
+                "targeted re-engagement offer to this group could recover meaningful revenue."
             )
 
     return_prediction = analysis.get("return_prediction")

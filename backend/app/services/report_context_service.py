@@ -13,6 +13,7 @@ from app.models.dataset import Dataset
 from app.models.ml_model import MLModel
 from app.models.project import Project
 from app.services import cleaning_service, eda_service, report_charts
+from app.services.data_understanding_service import classify_columns
 from app.services.ml_service import MODEL_LABELS
 from app.services.dataset_service import (
     find_ungrounded_concepts,
@@ -20,9 +21,24 @@ from app.services.dataset_service import (
     load_original_dataframe,
 )
 from app.utils.feature_names import humanize_column_name, humanize_feature_name, humanize_feature_list
+from app.utils.formatting import detect_currency_from_column_name, format_money
 
 CHURN_TARGET_HINTS = ("churn", "retention", "retain", "attrition", "cancel", "unsubscribe")
 CUSTOMER_ID_HINTS = ("customer", "client", "subscriber", "member", "user")
+
+
+def _detect_report_currency(dataset: Dataset | None) -> str | None:
+    """Scans the dataset's own column names for a currency code (e.g. 'total_pkr') — a
+    dataset's transactions are effectively always one currency, so this is computed once
+    per report rather than per value. Returns None (no currency prefix anywhere) when the
+    data gives no such evidence, rather than defaulting to a guessed currency."""
+    if not dataset:
+        return None
+    for col in (dataset.profile_json or {}).get("columns", []):
+        currency = detect_currency_from_column_name(col.get("name"))
+        if currency:
+            return currency
+    return None
 
 METRIC_LABELS = {
     "mae": "Mean Absolute Error (MAE)",
@@ -59,12 +75,18 @@ def _build_dataset_section(dataset: Dataset, project: Project) -> dict:
     time_period = None
     for col in columns:
         if col.get("is_datetime"):
-            parsed = pd.to_datetime(df[col["name"]], errors="coerce").dropna()
-            if len(parsed) > 0:
+            series = df[col["name"]]
+            parsed = pd.to_datetime(series, errors="coerce")
+            # Excludes invalid/implausible dates (unparseable, future, or a stray outlier
+            # far outside the bulk of the column's own range — e.g. a planted 2099 date
+            # among otherwise-2025/2026 rows) so the reported date range reflects the
+            # dataset's real span, not a single bad value.
+            valid = parsed[~cleaning_service.flag_invalid_dates(series) & parsed.notna()]
+            if len(valid) > 0:
                 time_period = {
                     "column": humanize_column_name(col["name"]),
-                    "min": str(parsed.min().date()),
-                    "max": str(parsed.max().date()),
+                    "min": str(valid.min().date()),
+                    "max": str(valid.max().date()),
                 }
             break
 
@@ -189,12 +211,18 @@ def _build_data_quality_section(dataset: Dataset) -> dict:
             }
         )
 
-    for col, rate in (log.get("unit_stripped_columns") or {}).items():
+    for col, info in (log.get("unit_stripped_columns") or {}).items():
+        # `info` is either the new {"match_rate", "example"} shape or, for a report built
+        # from an older cleaning_log_json predating this change, a bare float — handled so
+        # an old report still renders instead of crashing.
+        rate = info.get("match_rate") if isinstance(info, dict) else info
+        example = info.get("example") if isinstance(info, dict) else None
+        before_text = f"stored as text with a unit (e.g. '{example}')" if example else "stored as text with a unit suffix"
         cleaning_actions.append(
             {
                 "problem": f"Text-formatted numbers in {humanize_column_name(col)}",
                 "column": humanize_column_name(col),
-                "before": "stored as text with units (e.g. '4.2 km')",
+                "before": before_text,
                 "action": "Converted to a clean numeric value",
                 "after": "numeric",
                 "reason": f"{round(rate * 100)}% of values matched a number-with-unit pattern.",
@@ -202,11 +230,13 @@ def _build_data_quality_section(dataset: Dataset) -> dict:
         )
 
     for col, mapping in (log.get("text_case_normalized_columns") or {}).items():
+        variant, canonical = next(iter(mapping.items()))
+        example_text = f"(e.g. '{variant}' vs '{canonical}')" if variant != canonical else ""
         cleaning_actions.append(
             {
                 "problem": f"Inconsistent capitalization in {humanize_column_name(col)}",
                 "column": humanize_column_name(col),
-                "before": f"{len(mapping)} variant label(s) (e.g. 'rainy' vs 'Rainy')",
+                "before": f"{len(mapping)} variant label(s) {example_text}".strip(),
                 "action": "Merged into a single canonical label",
                 "after": "consistent labels",
                 "reason": "Values differing only by letter case would otherwise be treated as different categories.",
@@ -243,10 +273,12 @@ def _build_eda_section(db: Session, dataset: Dataset) -> dict:
 
     time_trend_image = None
     time_trend_label = None
+    peak_month = None
     if result["time_trend"] and len(result["time_trend"]["labels"]) >= 2:
         tt = result["time_trend"]
         time_trend_label = f"Trend over time ({humanize_column_name(tt['date_column'])})"
         time_trend_image = report_charts.line_chart(tt["labels"], tt["series"], time_trend_label)
+        peak_month = tt.get("peak_month")
 
     return {
         "kpis": result["kpis"],
@@ -254,6 +286,7 @@ def _build_eda_section(db: Session, dataset: Dataset) -> dict:
         "bar_charts": bar_charts,
         "time_trend_image": time_trend_image,
         "time_trend_label": time_trend_label,
+        "peak_month": peak_month,
         "rating_breakdown": result["rating_breakdown"],
     }
 
@@ -468,6 +501,60 @@ def _build_future_outlook(db: Session, model: MLModel, dataset: Dataset, feature
     return {"kind": kind, "narrative": narrative, "groups": groups, "label": label}
 
 
+def _build_model_recommendations(model: MLModel, future_outlook: dict, feature_importance: list[dict]) -> list[str]:
+    """Real, rule-based BUSINESS ACTIONS for a trained supervised model — deliberately
+    NOT a restatement of feature importance ("X is the strongest predictor of Y" is an
+    analytical finding, not something a reader can act on). Built from the same verified
+    data future_outlook already computed (grouped observed rates, actual-vs-predicted
+    examples), phrased as an action rather than a ranking."""
+    recs: list[str] = []
+    metrics = model.metrics_json or {}
+
+    if metrics.get("is_weak"):
+        recs.append(
+            f"This model's predictions are not reliable enough to act on directly "
+            f"({metrics.get('weak_reason') or 'it does not clearly beat a naive baseline'}) — before using it "
+            "to guide decisions, consider collecting more data, adding features with a stronger real "
+            "relationship to the target, or reconsidering whether this target is predictable from the "
+            "available columns at all."
+        )
+        return recs
+
+    target_label = humanize_column_name(model.target_column)
+
+    if future_outlook.get("kind") == "regression":
+        if feature_importance:
+            top = feature_importance[0]
+            recs.append(
+                f"'{top['label']}' is the leading driver of {target_label} in this model — treat it as the "
+                "primary lever: track it closely, and test whether deliberately changing it (through pricing, "
+                f"process, or policy changes) moves {target_label} in the expected direction."
+            )
+    elif future_outlook.get("groups"):
+        groups = future_outlook["groups"]
+        highest = max(groups, key=lambda g: g["rate"])
+        lowest = min(groups, key=lambda g: g["rate"])
+        gap = round((highest["rate"] - lowest["rate"]) * 100, 1)
+        if gap >= 1:
+            recs.append(
+                f"Prioritize outreach/intervention on the '{highest['label']}' segment ({highest['size']} "
+                f"cases, {round(highest['rate'] * 100, 1)}% observed {target_label} rate) — it shows a "
+                f"{gap} point higher rate than '{lowest['label']}' ({round(lowest['rate'] * 100, 1)}%), the "
+                "clearest actionable lever this model identifies."
+            )
+
+    baseline = metrics.get("baseline") or {}
+    if baseline.get("clearly_beats_baseline"):
+        recs.append(
+            f"This model clearly outperforms a naive baseline ({baseline.get('baseline_metric')}: "
+            f"{baseline.get('model_score')} vs. {baseline.get('baseline_score')}) — reasonable to use for "
+            "prioritization, though any single prediction should still be sanity-checked against domain "
+            "knowledge before a high-stakes decision."
+        )
+
+    return recs
+
+
 def _build_limitations(dataset: Dataset, model: MLModel | None) -> list[str]:
     limitations = []
     row_count = dataset.row_count or 0
@@ -508,19 +595,111 @@ def _build_limitations(dataset: Dataset, model: MLModel | None) -> list[str]:
 def _build_clusters_section(clusters: dict, dataset: Dataset) -> dict:
     """Humanizes the raw output of ml_service.run_clustering_analysis() for the report —
     used only for the 'General Analysis' (no-target) path, mutually exclusive with the
-    'model' section (a job either trains a supervised model or clusters, never both)."""
-    profiles = [
-        {
-            "cluster": c["cluster"],
-            "size": c["size"],
-            "pct": c["pct"],
-            "feature_means": [
-                {"label": humanize_column_name(name), "value": _fmt_num(value)}
-                for name, value in c.get("feature_means", {}).items()
-            ],
-        }
-        for c in clusters.get("clusters", [])
-    ]
+    'model' section (a job either trains a supervised model or clusters, never both).
+
+    Enriches each cluster with a rule-based descriptive NAME (from its most distinctive
+    behavioral features vs. the overall dataset average — never an arbitrary cluster ID
+    alone), a comparison-to-average table (what's actually notable, not just raw
+    averages), the demographic/categorical descriptive_summary ml_service already
+    computed but the report never surfaced, and a rule-based suggested offer — so a
+    reader gets an actionable segment profile."""
+    profiles_raw = clusters.get("clusters", [])
+    behavioral_cols = clusters.get("features_used", [])
+    total_rows = sum(c["size"] for c in profiles_raw) or 1
+
+    overall_means = {
+        col: sum(c.get("feature_means", {}).get(col, 0) * c["size"] for c in profiles_raw) / total_rows
+        for col in behavioral_cols
+    }
+
+    # Which behavioral column (if any) represents monetary value — used to rank clusters
+    # by value for the suggested-offer rule below. Detected from real column roles
+    # (classify_columns), never a hardcoded per-dataset column name.
+    money_col = None
+    try:
+        df = load_dataframe(dataset)
+        column_roles = classify_columns(df, dataset.profile_json or {}, use_gemini=False)
+        money_col = next((c for c in behavioral_cols if column_roles.get(c, {}).get("role") == "money"), None)
+    except Exception:
+        pass
+
+    value_rank: dict[int, int] = {}
+    if money_col:
+        ranked = sorted(profiles_raw, key=lambda c: c.get("feature_means", {}).get(money_col, 0), reverse=True)
+        value_rank = {c["cluster"]: i for i, c in enumerate(ranked)}
+
+    profiles = []
+    for c in profiles_raw:
+        deviations = []
+        for name, value in c.get("feature_means", {}).items():
+            overall = overall_means.get(name, 0)
+            pct_diff = ((value - overall) / abs(overall) * 100) if overall else 0.0
+            deviations.append(
+                {
+                    "label": humanize_column_name(name),
+                    "value": _fmt_num(value),
+                    "overall_value": _fmt_num(overall),
+                    "pct_diff": round(pct_diff, 1),
+                }
+            )
+        deviations.sort(key=lambda d: abs(d["pct_diff"]), reverse=True)
+
+        name_parts = []
+        for d in deviations[:2]:
+            if abs(d["pct_diff"]) >= 10:  # only call out a genuinely notable difference
+                direction = "High" if d["pct_diff"] > 0 else "Low"
+                name_parts.append(f"{direction} {d['label']}")
+        segment_name = ", ".join(name_parts) if name_parts else f"Cluster {c['cluster']} (near-average profile)"
+
+        if money_col and c["cluster"] in value_rank:
+            rank = value_rank[c["cluster"]]
+            n_clusters = len(profiles_raw)
+            money_label = humanize_column_name(money_col)
+            if rank == 0:
+                offer = f"Highest {money_label} segment — a loyalty/VIP retention offer protects this group's value."
+            elif rank == n_clusters - 1:
+                offer = f"Lowest {money_label} segment — a win-back or re-engagement offer may lift activity here."
+            else:
+                offer = (
+                    f"Mid-tier {money_label} segment — a targeted upsell offer aimed at their strongest "
+                    "distinguishing trait may grow this group."
+                )
+        elif deviations:
+            top = deviations[0]
+            direction = "high" if top["pct_diff"] > 0 else "low"
+            offer = f"Distinguished by {direction} {top['label'].lower()} — target offers/communication around this trait for the best response."
+        else:
+            offer = "No behavioral feature stands out enough from the overall average to suggest a targeted offer."
+
+        descriptive_numeric = []
+        descriptive_categorical = []
+        for key, val in (c.get("descriptive_summary") or {}).items():
+            if isinstance(val, dict):
+                top_value = max(val, key=val.get) if val else None
+                descriptive_categorical.append(
+                    {
+                        "label": humanize_column_name(key),
+                        "top_value": top_value,
+                        "top_pct": val.get(top_value) if top_value is not None else None,
+                    }
+                )
+            else:
+                descriptive_numeric.append({"label": humanize_column_name(key), "value": _fmt_num(val)})
+
+        profiles.append(
+            {
+                "cluster": c["cluster"],
+                "name": segment_name,
+                "size": c["size"],
+                "pct": c["pct"],
+                "distinguishing_features": deviations[:5],
+                "feature_means": [{"label": d["label"], "value": d["value"]} for d in deviations],
+                "descriptive_numeric": descriptive_numeric,
+                "descriptive_categorical": descriptive_categorical,
+                "suggested_offer": offer,
+            }
+        )
+
     return {
         "method_label": "K-Means",
         "k": clusters.get("k"),
@@ -617,9 +796,11 @@ def build_report_context(
         "no_model_reason": no_model_reason,
         "feature_importance": [],
         "future_outlook": None,
+        "model_recommendations": [],
         "ai_insights": None,
         "limitations": [],
         "appendix": {},
+        "currency": _detect_report_currency(dataset),
     }
 
     if dataset is not None:
@@ -651,6 +832,9 @@ def build_report_context(
                 "Top features driving the outcome",
             )
         context["future_outlook"] = _build_future_outlook(db, model, dataset, context["feature_importance"])
+        context["model_recommendations"] = _build_model_recommendations(
+            model, context["future_outlook"], context["feature_importance"]
+        )
         context["appendix"] = {
             "preprocessing": model.preprocessing_json or {},
             "hyperparameters": model.hyperparameters_json or {},
@@ -670,12 +854,11 @@ def build_report_context(
             "expertise before acting on it."
         )
 
-    # A report must always state SOME business question, not just a page count — a project
-    # description (when the user wrote one) is the most specific answer; otherwise infer a
-    # reasonable one from what was actually analyzed, so this line is never silently absent.
-    if context["dataset"] and context["dataset"].get("description"):
-        context["business_question"] = context["dataset"]["description"]
-    elif context["transaction_analysis"]:
+    # A report must always state SOME business question, not just a page count — derived
+    # from what the plan actually decided to analyze, NEVER the project description (a
+    # free-text field the user may not have filled in, or may have written before the
+    # actual analysis path was known — it can silently mismatch what the report contains).
+    if context["transaction_analysis"]:
         context["business_question"] = (
             "How is the business performing (revenue, refunds), who are the best customers, which "
             "customers are likely to return, and what should revenue look like in the coming months?"

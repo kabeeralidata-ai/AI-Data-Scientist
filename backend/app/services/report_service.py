@@ -16,11 +16,13 @@ from app.models.report import Report
 from app.models.user import User
 from app.services import ai_service, report_context_service
 from app.services.ai_service import AIUnavailableError
+from app.utils.formatting import format_money
 
 logger = logging.getLogger("report_service")
 
 TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "..", "templates")
 _env = Environment(loader=FileSystemLoader(TEMPLATE_DIR), autoescape=True)
+_env.filters["money"] = format_money
 
 
 def _render_ai_markdown(text: str) -> str:

@@ -860,19 +860,135 @@ baseline-extraction refactor didn't change its behavior). Full benchmark: **66/6
 (unchanged — this finding only added verification/reporting, not a behavior change to
 what the benchmark checks).
 
+## Phase 6 — adaptive report (2026-09-26)
+
+Phase 0 Finding 3: report sections were a hardcoded `{% if model %}...{% elif
+clusters %}...{% elif transaction_analysis %}...` branch chain in `report.html`, not
+driven by the plan Phase 4 now computes for every dataset — plus a set of concrete report
+defects surfaced by earlier reviews (hardcoded cross-dataset examples, meaningless summed
+KPIs, no currency formatting, invalid dates leaking into date ranges/trend charts, refunds
+mislabeled as errors, recommendations that were just a restated feature-importance table,
+thin segmentation output, raw internal fields leaking into the PDF appendix, cover page
+spilling onto page 2).
+
+### Finding 22 — nine concrete report defects, each fixed and verified against real data — ✅ FIXED
+
+1. **Business question always derived from the plan, never the free-text project
+   description.** Removed the branch in `report_context_service.build_report_context()`
+   that overwrote the derived business question with `dataset.description` whenever one was
+   present. The business question is now always the elif-chain result based on what was
+   actually analyzed (transaction_analysis → revenue/RFM/return/forecast question; model →
+   "What predicts {target}?"; clusters → "What natural groupings exist?"). The raw
+   free-text description, if any, is now shown separately and unambiguously labeled
+   "Project description (as entered by the user):" so it's never mistaken for the derived
+   question.
+2. **No hardcoded cross-dataset examples.** `cleaning_service._strip_units_from_numeric_like_columns()`
+   now captures a real example value per column (e.g. actual matched text, not the
+   hardcoded "4.2 km"); the text-case-normalization path now surfaces a real
+   variant/canonical pair from the actual data instead of the hardcoded "'rainy' vs
+   'Rainy'".
+3. **Meaningful KPIs per dataset type.** `eda_service._select_kpis()` now takes the real
+   column roles and only SUMS columns with a genuine MONEY or QUANTITY role ("Total X");
+   everything else (age, rating, price-per-unit) is AVERAGED ("Average X") instead of
+   nonsensically summed. A genuine percentage-shaped column is detected and shown as a
+   percent rather than a raw number. New `app/utils/formatting.py` (`format_money`,
+   `detect_currency_from_column_name`) abbreviates large numbers (13,100,000 → "13.1M")
+   and prefixes a currency code ONLY when genuinely evidenced by a column name (e.g.
+   "total_pkr" → PKR) — never guessed. Registered as the Jinja `money` filter.
+4. **Invalid dates excluded from date ranges and trend charts.** Both the dataset-section
+   `time_period` and `eda_service._select_time_trend()` now filter through
+   `cleaning_service.flag_invalid_dates()` before computing min/max/grouping. Revenue
+   trend narratives now name the real peak month by computing a monthly SUM (not mean) of
+   the target/business-outcome column and reporting `{month, value}` — this is also the fix
+   for the one benchmark check that had failed since the harness was first built:
+   **"Nov-Dec revenue peak visible."**
+5. **Refunds described as refunds, losses described as losses.**
+   `cleaning_service._detect_refunds()` now classifies each negative-capable column's
+   "kind" as `"loss"` (name matches profit/margin/markup/commission/surplus/net) vs.
+   `"refund"` (everything else), producing distinct, semantically-correct messages instead
+   of a single generic "error" framing for both.
+6. **Recommendations are real business actions, not restated feature importances.** New
+   `report_context_service._build_model_recommendations()` produces genuinely
+   action-oriented text: gather-better-data advice for a weak model, an operational
+   "lever" framing for the top regression feature, a highest-vs-lowest observed-rate
+   segment call-out for classification, and a baseline-grounded confidence statement.
+   Segmentation and transaction-log reports already had rule-based recommendations from
+   earlier phases; those are unchanged. AI-generated recommendations remain separately
+   badged per item and never appear unbadged.
+7. **Segmentation reports now show segment names, sizes, distinguishing features, and
+   suggested offers.** `_build_clusters_section()` rewritten to compute, per cluster: a
+   rule-based name from the top 1-2 most-deviating behavioral features vs. the overall
+   weighted average, a distinguishing-features table (value / overall value / % difference),
+   the existing (previously computed but never shown) descriptive summary, and a rule-based
+   suggested offer ranked by a detected money-role behavioral column when one exists
+   (highest-value cluster → VIP/retention, lowest → win-back, middle → upsell) or by the
+   single most distinctive feature otherwise.
+8. **Transaction-report naming and peak-time fixes.** `customer_analytics_service.RFM_SEGMENTS["at_risk"]`
+   renamed from "At Risk" to "Slipping Away" so it no longer collides with
+   `return_prediction_service`'s independently-computed "At risk of not returning" group —
+   two different things that previously looked identical. New
+   `transaction_analysis_service._peak_hour_range()` reports the contiguous window of
+   hours around the peak (e.g. "6 PM–10 PM") instead of a single hour.
+9. **Formatting cleanup.** The appendix "Full model metrics" table now filters on the
+   canonical metric-label registry instead of `v is number or v is string`, which had been
+   leaking the internal boolean `is_weak` into the PDF as "Is Weak" / "False". MAPE
+   formatting was checked and was already correct (already percentage-scaled at the
+   source). The "no AI badge on failed AI sections" requirement was checked and was already
+   correct (the badge CSS class exists but nothing renders it when AI is unreachable).
+   Cover-page pagination was checked by actually rendering a PDF and counting pages with
+   `pypdf` — a real bug: `margin-top: 220px` plus title/subtitle/meta lines pushed the
+   cover onto page 2 for a longer title. Fixed by reducing cover margins/font-size; verified
+   by re-rendering (page count dropped 19→18, cover content confirmed entirely on page 1).
+
+**Two additional real bugs found and fixed along the way** (not explicitly requested, but
+surfaced while verifying the above against real data):
+  - Coffee shop's plan reported "27028 days of history" from a planted invalid
+    `2099-01-01` date never filtered out of `transaction_analysis_service.build_analysis_plan()`'s
+    span calculation (the actual execution path already filtered it; the plan-preview path
+    didn't). Fixed by applying `flag_invalid_dates()` before computing the span. Corrected
+    to 454 days / 64 weeks.
+  - The live (non-test) dev server process had been running since before these changes and
+    was started without `--reload`, so its in-memory Jinja `Environment` never picked up the
+    new `money` filter registration — every live report generation crashed with
+    `jinja2.exceptions.TemplateAssertionError: No filter named 'money'` even though the
+    isolated benchmark harness (which imports the app fresh per test run) passed 67/67.
+    This was caught only by generating real reports against the actually-running server, not
+    by the test suite or benchmark harness alone. Fixed by restarting the server process; no
+    code change was needed.
+
+**Verified end-to-end in the live running app** (not just the isolated benchmark harness):
+created 6 new projects against `http://localhost:8000`, uploaded each of the 6 real
+benchmark datasets, ran Auto Analyze through to a generated report for each, and inspected
+the actual rendered HTML preview (`GET /api/reports/{id}/preview`) for every dataset:
+  - `customer_churn_dataset.csv` → business question "What predicts Total Revenue, and how
+    reliably?" (plan-derived, not the project description).
+  - `retail_sales_dataset.csv` → "Peak month: **November 2024** (Sales Amount totaled 69.0K
+    that month, the highest of any month in the covered period)." — real, computed value.
+  - `karachi_food_delivery_dataset.csv` → completed, plan-derived business question.
+  - `customer_retention_training.csv` → PKR-formatted money values present.
+  - `coffee_shop_transactions.csv` → "Peak revenue window is 6 PM–10 PM (PKR 5.6M in that
+    single busiest hour)"; "Refund rate is 0.06% of transactions — low, with no sign of a
+    widespread product or service-quality issue."; MAPE shown as a percentage.
+  - `telecom_subscribers_usage.csv` → 4 real, distinct segment names (e.g. "High
+    International Minutes Month, Low Video Streaming Hours Month — 577 rows (14.4%)") each
+    with its own suggested offer (VIP/retention, upsell, win-back).
+  - Across all 6: no `is_weak`/raw-field leaks, no hardcoded "4.2 km" / "'rainy' vs 'Rainy'"
+    text, zero unbadged "AI-generated" mentions (consistent with AI being unreachable in
+    this environment — Gemini rate-limited, Ollama not running — the report correctly fell
+    back to rule-based content throughout).
+
+Full backend suite: **250/250**. Full 6-dataset benchmark: **67/67** — every check now
+passes, including the previously-failing "Nov-Dec revenue peak visible."
+
 ## Next step
 
-Phases 1-5 (including the Finding 20 plan-confirmation follow-up and the segmentation-
-methodology fix, Finding 18) are all done for this round's scope — full benchmark
-**66/67**, full test suite **250/250**. Findings 6-21 are fixed, documented, or explicitly
-deferred per user decision; none is a silent/unknown gap. The only remaining benchmark
-failure is retail's Nov-Dec report gap, which is explicitly Phase 6 scope (see below).
+Phases 1-6 are all done for this round's scope — full benchmark **67/67**, full test suite
+**250/250**. Findings 6-22 are fixed, documented, or explicitly deferred per user decision;
+none is a silent/unknown gap.
 
-**Suggested next phase: Phase 6** (adaptive report) — Phase 0 Finding 3: report sections
-are a hardcoded `{% if model %}...{% elif clusters %}...{% elif transaction_analysis %}...`
-branch chain in `report.html`, not driven by the plan Phase 4 now computes for every
-dataset. This is also the fix for the one remaining benchmark failure (retail's Nov-Dec
-seasonal-peak narrative has no section to live in for the plain-regression path today).
+Remaining open, deliberately-deferred items (not required for this round's stated goal):
+  - Return-prediction still doesn't save an `MLModel` row via `prediction_service`, so
+    there's no batch-prediction UI path for it (Finding 21's documented remaining scope).
 
 The BROADER Phase 2 scope remains open and deliberately deferred (not required for this
 round's stated goal):
