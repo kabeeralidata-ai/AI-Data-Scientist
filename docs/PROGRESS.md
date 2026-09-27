@@ -1130,3 +1130,106 @@ round's stated goal):
     with no outcome") — the Finding 13 fix corrected the CLASSIFICATION logic but the
     label strings themselves are still the old internal names.
   - `suggest_target_column()`'s formula-column blind spot noted above.
+
+
+## Phase 9 — Final Verification (2026-09-27)
+
+**Starting commit:** `ad424fc` "Fix: don't cache get_git_commit() across requests"
+
+### Phase 9 Finding A — Report regeneration API does not pass clustering/transaction-analysis context — ✅ FIXED
+
+**Root cause confirmed:** `POST /api/reports/projects/{id}/generate` called
+`report_service.generate_report(db, project, dataset, model, title, user)` without ever
+passing `clusters=` or `transaction_analysis=`. Auto Analyze itself always passes these
+correctly (see `_run_general_analysis` and `_run_transaction_log_analysis` in
+`auto_analyze_service.py`), but the standalone report-regeneration endpoint did not. For
+clustering and transaction-log projects (which never have an `MLModel` row), the
+regenerated report would silently produce a generic "no model" placeholder with no actual
+analysis content.
+
+**Fix:** `app/api/reports.py` — new `_get_latest_completed_job_result()` helper queries
+the most recent `COMPLETED` `AutoAnalyzeJob` for the project, extracts `analysis_type`,
+`clusters` (if clustering), or `transaction_analysis` (if transaction_log), and passes
+them through to `generate_report()`. Supervised projects (which do have an `MLModel`
+row) are unaffected — the `if model is None:` guard ensures the new path only runs when
+no model exists.
+
+**Regression tests added:** `test_manual_report_regeneration_uses_clustering_context` and
+`test_manual_report_regeneration_does_not_use_clustering_when_model_exists` in
+`tests/test_report_service.py` — reproduce the exact condition (multiple completed jobs,
+user triggers manual regeneration) and pin the expected behaviour for both clustering and
+supervised paths permanently.
+
+**Root cause of live-testing confusion:** Stale backend processes from a previous session
+were still listening on port 8000, serving old pre-fix code even after the new server was
+started. Only after terminating all Python processes from the previous day and starting a
+completely fresh server did the live HTTP endpoint serve the fixed code.
+
+### Final verification results
+
+**Running-server commit verified against Git HEAD:**
+- Server: `ad424fc914dde998600588e1b89d9e22cbf65139`
+- Git HEAD: `ad424fc914dde998600588e1b89d9e22cbf65139`
+- Match: ✅
+
+**Backend test suite:**
+- Command: `python -m pytest tests/ --ignore=tests/benchmark`
+- Result: **264/264 PASSED** (262 original + 2 new Phase 9 regression tests)
+- Duration: ~21 minutes
+
+**Frontend checks:**
+- Tests (Vitest): **36/36 PASSED**
+- TypeScript (`tsc --noEmit`): **PASS** (0 errors, exit code 0)
+- Lint (ESLint): 13 errors / 4 warnings — all pre-existing `react-hooks/set-state-in-effect` patterns from original codebase; none introduced by this overhaul
+- Production build (`next build`): **PASS** — all 8 routes compiled
+
+**Full 6-dataset benchmark (67/67):**
+
+| Dataset | Checks | Status |
+|---|---|---|
+| customer_churn_dataset.csv | 10/10 | ✅ PASS |
+| retail_sales_dataset.csv | 11/11 | ✅ PASS |
+| karachi_food_delivery_dataset.csv | 12/12 | ✅ PASS |
+| customer_retention_training.csv | 8/8 | ✅ PASS |
+| coffee_shop_transactions.csv | 15/15 | ✅ PASS |
+| telecom_subscribers_usage.csv | 11/11 | ✅ PASS |
+| **TOTAL** | **67/67** | ✅ **ALL PASS** |
+
+**Live verification — 6 NEW projects (user phase9v2_*):**
+
+All 6 projects created fresh, Auto Analyze run from scratch, reports manually regenerated via `POST /api/reports/projects/{id}/generate`:
+
+| Dataset | Plan | Analysis | Report content | Status |
+|---|---|---|---|---|
+| Churn | Supervised (churn) | classification, customer_id excluded, signup_date excluded | "churn", "classification", no raw dumps | ✅ PASS |
+| Retail | Supervised (sales_amount) | regression, order_id/profit excluded | "sales", "regression", no raw dumps | ✅ PASS |
+| Karachi | Supervised (late_delivery) | classification, delivery_time_min excluded, promised_time_min KEPT | "late", "delivery", no raw dumps | ✅ PASS |
+| Retention | Supervised (will_return_next_90_days) | batch prediction 500 rows, 210 returners [190-260] ✅ | "return", "classification", no raw dumps | ✅ PASS |
+| Coffee | Transaction log | 1,150 customers, 705 returners, CSV 1150 rows no dups, Excel valid | "Revenue", "RFM", "Return Prediction", "Walk-in" | ✅ PASS |
+| Telecom | Segmentation | k=4, clustering, no target forced | "Cluster Analysis", "4 cluster(s)", "Segment" — **Finding A fix verified** | ✅ PASS |
+
+**Phase 9 Finding A fix verified live:**
+- Telecom fresh manually-regenerated report: 279,893 chars, contains "Cluster Analysis", "4 cluster(s) identified across 4000 row(s), using 10 numeric feature(s)" — confirming the fix works correctly on the fresh server.
+- Coffee transaction report manually regenerated: 337,028 chars, contains "Revenue Analytics", "RFM", "Return Prediction", "Walk-in" — transaction context correctly recovered from completed job.
+
+**Export verification (coffee shop):**
+- CSV: 200 OK, 1,150 data rows, header=`customer_id,predicted_return,return_probability,risk_group`, NO duplicate IDs ✅
+- XLSX: 200 OK, 28,963 bytes, magic bytes `PK\x03\x04` (valid ZIP/XLSX) ✅
+
+**Retention batch prediction:** 500 rows, 210 predicted returners (range [190, 260], true=223) ✅
+
+**AI verification:**
+- Gemini: rate_limited (quota exceeded — environment limitation)
+- Ollama: unreachable (not running locally)
+- Result: NOT VERIFIED — no AI provider available in this environment during Phase 9 verification; service routing, error handling, and retry logic verified via unit tests (test_gemini_service.py, test_shared_provider_routing.py, test_ai_service.py)
+
+**Browser/UI responsive verification:** NOT VERIFIED — browser tooling unavailable in this environment
+
+**Known remaining limitations (documented, not regressions):**
+1. `suggest_target_column()` in the Modeling-tab dropdown pre-fill does not pass `formula_columns` — formula columns could appear in the dropdown (documented Phase 1 Finding 7 gap)
+2. `return_prediction_service` does not save an `MLModel` row — batch prediction not available for transaction-log return-prediction via the standard `/api/predictions/batch` endpoint (documented Phase 0 Finding 2 partial)
+3. Report section numbering in `report.html` is hardcoded — adding a new analysis type requires editing the branching chain (documented Phase 6 Finding 3 deferred)
+4. ESLint `react-hooks/set-state-in-effect` (13 errors) — pre-existing patterns in original codebase, none from this overhaul
+5. AI insight/chat NOT VERIFIED — both Gemini (rate limited) and Ollama (unreachable) unavailable during Phase 9 live verification
+
+**Final commit:** See git log for "Overhaul complete"

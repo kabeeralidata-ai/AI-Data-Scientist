@@ -498,3 +498,18 @@ table) is structured so these can be added without a rewrite.
   panel, batch prediction, load-from-dataset picker) — currently covered by clean
   `npm run build` type-checks and backend pytest coverage of the underlying APIs, not
   component-level frontend tests
+
+---
+
+## Phase 9 — Overhaul Completion (2026-09-27)
+
+The complete 9-phase architecture overhaul is verified and committed. Final evidence:
+
+- **Backend tests:** 264/264 passed (includes 2 new Phase 9 regression tests)
+- **Frontend tests:** 36/36 passed; production build clean; TypeScript 0 errors
+- **Benchmark:** 67/67 checks across all 6 real datasets (0 skipped, 0 errored)
+- **Phase 9 Finding A fixed:** `POST /api/reports/projects/{id}/generate` now correctly
+  recovers `clusters` and `transaction_analysis` from the most recent completed Auto
+  Analyze job, so manually regenerated reports for clustering and transaction-log
+  projects include the real analysis results (not a generic "no model" placeholder)
+- **Six original root causes:** all resolved (see `docs/PROGRESS.md` for full details)

@@ -387,3 +387,116 @@ def test_late_delivery_style_categorical_leak_against_numeric_target_is_caught()
     flagged_leakage = {w["column"] for w in resolution.leakage_warnings}
     flagged_post_outcome = {w["column"] for w in resolution.post_outcome_excluded}
     assert "late_delivery" in flagged_leakage or "late_delivery" in flagged_post_outcome
+
+
+# ── Phase 9 Finding A: manual report regeneration must use completed Auto Analyze context ──────
+
+def _numeric_cluster_csv(n=180):
+    """A dataset with several numeric behavioral columns and NO detectable target —
+    designed to produce a real clustering result when Auto Analyze runs."""
+    random.seed(77)
+    rows = ["sensor_id,usage_a,usage_b,usage_c,usage_d"]
+    for i in range(n):
+        a = round(random.uniform(0, 100), 2)
+        b = round(a * 0.4 + random.uniform(-15, 15), 2)
+        c = round(random.uniform(-30, 80), 2)
+        d = round(random.uniform(5, 50), 2)
+        rows.append(f"SID-{i},{a},{b},{c},{d}")
+    return "\n".join(rows)
+
+
+def _transaction_log_csv(n=200):
+    """Minimal transaction log: one date, one customer ID, one numeric amount.
+    Designed to be classified as transaction_log by data_understanding_service
+    (multiple events per customer_id, a clear timestamp column)."""
+    random.seed(88)
+    rows = ["transaction_date,customer_id,item_category,amount_pkr,quantity"]
+    customers = [f"CUST-{i}" for i in range(20)]
+    categories = ["Food", "Drink", "Snack"]
+    for i in range(n):
+        d = f"2025-{(i % 12) + 1:02d}-{(i % 28) + 1:02d}"
+        cust = customers[i % len(customers)]
+        amt = round(random.uniform(100, 2000), 2)
+        qty = random.randint(1, 5)
+        rows.append(f"{d},{cust},{random.choice(categories)},{amt},{qty}")
+    return "\n".join(rows)
+
+
+def test_manual_report_regeneration_uses_clustering_context(auth_client, monkeypatch):
+    """Phase 9 Finding A — regression test.
+
+    Root cause: POST /api/reports/projects/{id}/generate previously NEVER passed
+    `clusters` or `transaction_analysis` into report_service.generate_report(), so
+    re-generating a report for a clustering project (model=None, no MLModel row)
+    produced a generic 'no model detected' placeholder instead of the real k-means result
+    that the Auto Analyze pipeline had already computed and stored on the job.
+
+    This test reproduces that exact condition (project has a completed clustering job, user
+    manually calls the report-generate endpoint) and verifies the regenerated report
+    contains real cluster/segment content — NOT a fallback placeholder."""
+    monkeypatch.setattr("app.services.auto_analyze_service.dataset_service.score_target_candidates", lambda *a, **k: [])
+    monkeypatch.setattr(
+        "app.services.report_service.ai_service.generate_report_insight",
+        lambda context: ("## Insights\n- Mocked insight.", "gemini"),
+    )
+
+    project_id = create_project(auth_client, "Phase9-Regression-Clustering")
+    dataset_id = upload_csv(auth_client, project_id, _numeric_cluster_csv())
+
+    # Run Auto Analyze through to clustering completion
+    start_resp = auth_client.post(f"/api/projects/{project_id}/auto-analyze", json={"dataset_id": dataset_id})
+    assert start_resp.status_code == 201
+    job_id = start_resp.json()["id"]
+
+    job = auth_client.get(f"/api/auto-analyze/{job_id}").json()
+    assert job["status"] == "awaiting_plan_confirmation"
+
+    confirm_resp = auth_client.post(f"/api/auto-analyze/{job_id}/confirm-plan")
+    assert confirm_resp.status_code == 200
+
+    job = auth_client.get(f"/api/auto-analyze/{job_id}").json()
+    assert job["status"] == "completed"
+    assert job["result_json"]["analysis_type"] == "clustering"
+    assert job["result_json"]["clusters"] is not None
+
+    # Now manually regenerate a NEW report through the report-generate endpoint
+    # (the same path the UI uses when the user presses "Generate Report" in the Reports tab)
+    regen_resp = auth_client.post(f"/api/reports/projects/{project_id}/generate", json={})
+    assert regen_resp.status_code == 201
+    regen_report_id = regen_resp.json()["id"]
+
+    # The REGENERATED report must contain real cluster/segment content — not a placeholder
+    preview = auth_client.get(f"/api/reports/{regen_report_id}/preview")
+    assert preview.status_code == 200
+    html = preview.text
+
+    assert "Cluster Analysis" in html, (
+        "Regenerated report missing 'Cluster Analysis' section — the fix to pass clusters= "
+        "from the completed Auto Analyze job to generate_report() is not working."
+    )
+    assert "Segment" in html, "Regenerated report missing Segment content"
+    # Must NOT be the old generic placeholder text
+    assert "No model was trained for this dataset" not in html or "No target column was confidently detected" in html
+
+
+def test_manual_report_regeneration_does_not_use_clustering_when_model_exists(auth_client, monkeypatch):
+    """Regression guard: for supervised projects with a real MLModel, manual report
+    regeneration must still use that model — not try to load phantom clusters from a
+    non-existent Auto Analyze job."""
+    monkeypatch.setattr(
+        "app.services.report_service.ai_service.generate_report_insight",
+        lambda context: ("## Insights\n- Mocked.", "gemini"),
+    )
+
+    project_id = create_project(auth_client, "Phase9-Regression-Supervised")
+    dataset_id = upload_csv(auth_client, project_id, _retail_csv())
+    model_id = _train_model(auth_client, dataset_id, target="sales_amount")
+
+    regen_resp = auth_client.post(f"/api/reports/projects/{project_id}/generate", json={})
+    assert regen_resp.status_code == 201
+    html = _preview_html(auth_client, regen_resp.json()["id"])
+
+    # Supervised report sections are present
+    assert "Sales Amount" in html or "sales_amount" in html.lower()
+    # No cluster analysis section for a supervised project
+    assert "Cluster Analysis" not in html
