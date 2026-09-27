@@ -26,6 +26,19 @@ storage/reports/*
 !storage/models/.gitkeep
 !storage/reports/.gitkeep
 
+# Backend runtime storage (generated uploads, trained models, PDF reports)
+backend/storage/uploads/*
+backend/storage/models/*
+backend/storage/reports/*
+!backend/storage/uploads/.gitkeep
+!backend/storage/models/.gitkeep
+!backend/storage/reports/.gitkeep
+
+# Temporary Phase 9 / debug scripts (not part of the application)
+backend/scripts/debug_*.py
+backend/scripts/phase9_live_verify.py
+backend/scripts/verify_retention_batch.py
+
 # Frontend
 frontend/node_modules/
 frontend/.next/
