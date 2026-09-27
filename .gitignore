@@ -3,6 +3,10 @@
 .env.local
 *.env
 
+# Log files (never commit — may contain API keys, credentials, or sensitive request data)
+*.log
+logs/
+
 # Backend
 backend/venv/
 backend/__pycache__/
